@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Activity, AlertCircle, ArrowDownToLine, ArrowUpRight, Boxes, CheckCircle2, ClipboardList, Eye, EyeOff, Package, RefreshCw, ShieldCheck, Store, Truck, Wallet } from 'lucide-react'
+import { Activity, AlertCircle, Boxes, CheckCircle2, ClipboardList, Eye, EyeOff, Package, RefreshCw, ShieldCheck, Store, Truck } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useVendorAuth } from '../context/VendorAuthContext'
 import { createVendorProduct, finalizeVendorProductSubmission, getVendorDashboardData, listVendorCategories, markOrderReady, replyToCase, setProductStock, setProductVisibility, uploadVendorProductImage, type VendorCase, type VendorInventory, type VendorOrderItem, type VendorProduct } from '../services/marketplaceApi'
@@ -81,18 +81,17 @@ export function MarketplacePage() {
     { label: 'Open customer cases', value: cases.filter(c => !['resolved','rejected','approved'].includes(String(c.status))).length, icon: ClipboardList },
   ]
 
-  async function runAction(action: () => Promise<unknown>, success: string) {
+  async function runAction(action: () => Promise<unknown>, success: string): Promise<boolean> {
     setBusy(true); setError(''); setNotice('')
-    try { await action(); setNotice(success); await load() }
-    catch (cause) { setError(cause instanceof Error ? cause.message : 'The action could not be completed.') }
+    try { await action(); setNotice(success); await load(); return true }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'The action could not be completed.'); return false }
     finally { setBusy(false) }
   }
 
   async function submitStock(event: FormEvent) {
     event.preventDefault()
     if (!stockTarget) return
-    await runAction(() => setProductStock(stockTarget.product_id, Number(stockValue), stockNote, stockTarget.variant_id), 'Inventory updated.')
-    setStockTarget(null)
+    if (await runAction(() => setProductStock(stockTarget.product_id, Number(stockValue), stockNote, stockTarget.variant_id), 'Inventory updated.')) setStockTarget(null)
   }
   async function submitNewProduct(event: FormEvent) {
     event.preventDefault()
@@ -100,7 +99,7 @@ export function MarketplacePage() {
     const cleanName = productName.trim()
     if (cleanName.length < 2) { setError('Enter a product name.'); return }
     const slug = cleanName.toLowerCase().normalize('NFKD').replace(/[\\u0300-\\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-    await runAction(async () => {
+    const succeeded = await runAction(async () => {
       const productId = await createVendorProduct({
         category_id: productCategory || null,
         name: cleanName,
@@ -124,14 +123,13 @@ export function MarketplacePage() {
       await uploadVendorProductImage(productId, productImage, cleanName)
       await finalizeVendorProductSubmission(productId)
     }, 'Product submitted for JTBazar review.')
-    setShowProductForm(false); setProductName(''); setProductCategory(''); setProductPrice(''); setProductDescription(''); setProductStock('0'); setProductImage(null)
+    if (succeeded) { setShowProductForm(false); setProductName(''); setProductCategory(''); setProductPrice(''); setProductDescription(''); setProductStock('0'); setProductImage(null) }
   }
 
   async function submitCase(event: FormEvent) {
     event.preventDefault()
     if (!caseTarget) return
-    await runAction(() => replyToCase(caseTarget.id, caseReply), 'Your response was sent.')
-    setCaseTarget(null); setCaseReply('')
+    if (await runAction(() => replyToCase(caseTarget.id, caseReply), 'Your response was sent.')) { setCaseTarget(null); setCaseReply('') }
   }
 
   if (!configured) return <main className="mx-auto max-w-3xl p-8"><h1 className="text-2xl font-semibold">Connect Supabase</h1><p className="mt-2 text-sm text-muted">Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in the Vendor Center environment. This app uses the existing JTBazar project; it does not create or migrate database objects.</p></main>
