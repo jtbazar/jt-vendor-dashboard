@@ -4,7 +4,7 @@ import { Badge, Button, Card, PageHeader } from '../components/ui'
 import { useVendorAuth } from '../context/VendorAuthContext'
 import {
   createVendorProduct, finalizeVendorProductSubmission, getVendorCommissionPreview,
-  listVendorCategories, listVendorInventory, listVendorProductImages, listVendorProductPrimaryImages,
+  listVendorCategories, listVendorInventory, listVendorProductDeletionRequests, listVendorProductImages, listVendorProductPrimaryImages,
   listVendorProductVariants, listVendorProducts, requestVendorProductDeletion,
   saveVendorProductVariants, setProductVisibility, updateVendorProduct,
   uploadVendorProductImage, uploadVendorVariantImage,
