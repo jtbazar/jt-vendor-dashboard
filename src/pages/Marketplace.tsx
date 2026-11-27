@@ -107,6 +107,19 @@ export function MarketplacePage() {
   useEffect(() => { if (user && seller?.status === 'approved') void load() }, [user?.id, seller?.status, load])
   useEffect(() => { if (seller) void getVendorDocumentSignedUrls(seller).then(setSellerDocumentUrls).catch(() => setSellerDocumentUrls({cnicFront:null,cnicBack:null,verification:null})) }, [seller?.id, seller?.cnic_front_path, seller?.cnic_back_path, seller?.document_path])
 
+  useEffect(() => {
+    if (!activeTicket?.id) return
+    let active = true
+    const refreshMessages = async () => {
+      try {
+        const rows = await listVendorSupportMessages(activeTicket.id)
+        if (active) setSupportMessages(rows)
+      } catch { /* Keep the last visible conversation if a refresh is temporarily unavailable. */ }
+    }
+    const interval = window.setInterval(() => { void refreshMessages() }, 10000)
+    return () => { active = false; window.clearInterval(interval) }
+  }, [activeTicket?.id])
+
   const openOrders = useMemo(() => orders.filter(row => !['delivered','cancelled'].includes(String(row.vendor_fulfillment_status))), [orders])
   const lowStock = useMemo(() => inventory.filter(row => Number(row.quantity) <= Number(row.low_stock_threshold ?? 5)), [inventory])
   const stats = [
