@@ -3,6 +3,7 @@ import { ChevronsUpDown, Store } from 'lucide-react'
 import { navSections } from '../../nav'
 import { useVendorAuth } from '../../context/VendorAuthContext'
 import { cx } from '../../utils'
+import { useVendorLanguage } from '../../context/VendorLanguageContext'
 
 export function BrandMark({ size = 44 }: { size?: number }) {
   return (
@@ -39,6 +40,7 @@ export function Sidebar({
   onClose: () => void
 }) {
   const { seller } = useVendorAuth()
+  const { t } = useVendorLanguage()
   const shopName = seller?.shop_name || 'Your store'
   const businessType = businessTypeLabel(seller?.business_type)
   const isOpen = seller?.shop_is_open !== false
@@ -60,7 +62,7 @@ export function Sidebar({
             JTBazar<span className="text-sage-400">.</span>
           </p>
           <p className="mt-1.5 text-[8.5px] font-semibold uppercase tracking-[0.19em] text-[#8FA088]">
-            Vendor Center
+            {t('Vendor Center')}
           </p>
         </div>
       </div>
@@ -85,9 +87,9 @@ export function Sidebar({
 
       <nav className="relative mt-6 flex-1">
         {navSections.map((section) => (
-          <div key={section.label} className="mb-5">
+          <div key={t(section.label)} className="mb-5">
             <p className="mb-1.5 px-3 text-[8.5px] font-semibold uppercase tracking-[0.18em] text-[#74836E]">
-              {section.label}
+              {t(section.label)}
             </p>
             <div className="grid gap-0.5">
               {section.items.map((item) => {
@@ -109,7 +111,7 @@ export function Sidebar({
                       <>
                         <span className={cx('absolute left-0 top-1/2 h-3.5 w-[3px] -translate-y-1/2 rounded-r-full bg-clay transition-opacity', isActive ? 'opacity-100' : 'opacity-0')} />
                         <Icon size={16} strokeWidth={1.8} className={cx('flex-none transition-colors', isActive ? 'text-sage-300' : 'text-[#8B9A85] group-hover:text-sage-300')} />
-                        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                        <span className="min-w-0 flex-1 truncate">{t(item.label)}</span>
                       </>
                     )}
                   </NavLink>
@@ -125,9 +127,9 @@ export function Sidebar({
           <div className="min-w-0">
             <p className="flex items-center gap-1.5 text-[11px] font-semibold text-cream-50">
               <span className={cx('h-1.5 w-1.5 rounded-full', isOpen ? 'bg-[#9CC47D]' : 'bg-clay')} />
-              {isOpen ? 'Store open' : 'Store closed'}
+              {isOpen ? t('Store open') : t('Store closed')}
             </p>
-            <p className="mt-0.5 text-[9px] text-[#8A9884]">Manual switch in Settings</p>
+            <p className="mt-0.5 text-[9px] text-[#8A9884]">{t('Manual switch in Settings')}</p>
           </div>
         </div>
       </div>

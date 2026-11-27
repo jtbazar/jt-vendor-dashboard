@@ -5,9 +5,11 @@ import { Topbar } from './layout/Topbar'
 import { CommandPalette } from './layout/CommandPalette'
 import { Toasts } from './layout/Toasts'
 import { pageTitles } from '../nav'
+import { useVendorLanguage } from '../context/VendorLanguageContext'
 
 export function Layout() {
   const location = useLocation()
+  const { language } = useVendorLanguage()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const pageTitle = pageTitles[location.pathname] ?? 'Vendor Center'
@@ -32,7 +34,7 @@ export function Layout() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-cream-100 text-ink">
+    <div dir={language === "ur" ? "rtl" : "ltr"} lang={language === "ur" ? "ur" : "en"} className="min-h-screen bg-cream-100 text-ink">
       <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_88%_-4%,rgba(125,148,99,0.10),transparent_36%),radial-gradient(ellipse_at_12%_108%,rgba(192,113,79,0.055),transparent_30%)]" />
 
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />

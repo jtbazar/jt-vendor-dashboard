@@ -1,8 +1,6 @@
-import { useEffect, useState } from 'react'
 import { BookOpen, CheckCircle2, ClipboardList, Image, Package, PackageCheck, MessageCircle, ShoppingBag, Store, Truck, Wallet } from 'lucide-react'
 import { Card, PageHeader } from '../components/ui'
-
-type Language = 'en' | 'ur' | 'roman'
+import { useVendorLanguage } from '../context/VendorLanguageContext'
 
 const guideCopy = {
   en: {
@@ -77,24 +75,11 @@ const guideCopy = {
 } as const
 
 export function GuidePage() {
-  const [language, setLanguage] = useState<Language>(() => {
-    try {
-      const saved = window.localStorage.getItem('jtbazar-vendor-guide-language')
-      return saved === 'ur' || saved === 'roman' || saved === 'en' ? saved : 'en'
-    } catch {
-      return 'en'
-    }
-  })
+  const { language, setLanguage } = useVendorLanguage()
   const copy = guideCopy[language]
   const isUrdu = language === 'ur'
 
-  useEffect(() => {
-    try {
-      window.localStorage.setItem('jtbazar-vendor-guide-language', language)
-    } catch {
-      // The guide still works when browser storage is unavailable.
-    }
-  }, [language])
+
 
   return (
     <div className="space-y-5" dir={isUrdu ? 'rtl' : 'ltr'}>
