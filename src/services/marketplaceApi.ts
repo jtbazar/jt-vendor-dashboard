@@ -93,7 +93,7 @@ export async function listVendorOrders(options: { page?: number; pageSize?: numb
   const { data: pickupRows, error: pickupError } = await getSupabase().rpc('vendor_list_order_pickup_statuses', { p_order_ids: orderIds })
   assertNoError(pickupError)
   const allowed = ['awaiting_vendor', 'ready_for_pickup', 'picked_up', 'cancelled']
-  const pickupMap = new Map<string, string | null>((pickupRows ?? []).map((row: any) => [
+  const pickupMap = new Map<string, string | null>((pickupRows ?? []).map((row: any): [string, string | null] => [
     row.order_id,
     allowed.includes(row.status) ? row.status : null,
   ]))
