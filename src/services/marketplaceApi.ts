@@ -211,13 +211,28 @@ export interface VendorVariantInput {
 }
 
 export async function listVendorProductVariants(productId: string): Promise<VendorVariantInput[]> {
-  const { data, error } = await getSupabase().from('product_variants')
-    .select('id, option_label, option_value, sku, price_override, attributes, image_url, quantity')
-    .eq('product_id', productId)
-    .order('created_at', { ascending: true })
-    .limit(100)
-  assertNoError(error)
-  return (data ?? []) as VendorVariantInput[]
+  const client = getSupabase()
+  const [variants, inventory, product] = await Promise.all([
+    client.from('product_variants').select('id, option_label, option_value, sku, price_override, attributes, image_url, sort_order')
+      .eq('product_id', productId).order('sort_order').limit(100),
+    client.from('product_inventory').select('variant_id, quantity').eq('product_id', productId).limit(100),
+    client.from('products').select('commission_percent').eq('id', productId).maybeSingle(),
+  ])
+  assertNoError(variants.error)
+  assertNoError(inventory.error)
+  assertNoError(product.error)
+  const stockByVariant = new Map<string, number>((inventory.data ?? []).map((row: any): [string, number] => [row.variant_id, Number(row.quantity)]))
+  const commissionMultiplier = 1 + Number(product.data?.commission_percent ?? 0) / 100
+  return (variants.data ?? []).map((row: any) => ({
+    id: row.id,
+    option_label: row.option_label,
+    option_value: row.option_value,
+    sku: row.sku,
+    price_override: row.price_override == null ? null : Number((Number(row.price_override) / commissionMultiplier).toFixed(2)),
+    attributes: row.attributes ?? {},
+    image_url: row.image_url ?? null,
+    quantity: stockByVariant.get(row.id) ?? 0,
+  }))
 }
 
 export async function saveVendorProductVariants(productId: string, variants: VendorVariantInput[]) {
