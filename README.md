@@ -23,9 +23,9 @@ pnpm preview
 
 | Route | What it covers |
 | --- | --- |
-| `/vendor-login` | Existing-account password check followed by six-digit email OTP |
-| `/marketplace` | Live marketplace listings, product creation/editing, variants, inventory, fulfilment, customer cases, support and shop profile |
-| `/` | Overview — live KPIs, revenue chart, COD settlement, live orders, kitchen queue, stock and promotions |
+| `/vendor-login` | Existing customer email + password followed by six-digit email OTP, or Continue with Google for an existing Google-linked customer account |
+| `/marketplace` | Approved-seller-only marketplace workspace: live listings, product gallery, variants, inventory, fulfilment, customer cases, support and shop profile |
+| `/` | Redirects to `/marketplace`; no mock dashboard is shown before seller approval |
 | `/orders` | Order queue — filters, search, order drawer, accepted → preparing → ready lifecycle and COD direction notes |
 | `/kitchen` | Kitchen board — new / accepted / preparing / ready columns with prep timers and handover |
 | `/menu` | Restaurant menu — portion sizes, paid add-ons, modifiers, per-item prep time, availability and margins |
@@ -42,13 +42,14 @@ pnpm preview
 
 The `/marketplace` route is the first live-data integration slice for existing JTBazar marketplace sellers. It uses the shared production project only when the deployment environment is configured with the public publishable/anon key.
 
-- `/vendor-login`: existing-account password check followed by the same six-digit email OTP sign-in pattern used by the JTBazar website.
-- `/marketplace`: approved seller gate, live listing data, inventory, fulfilment orders, customer cases, product submission and shop profile information.
+- `/vendor-login`: existing customer accounts only. Email/password users verify their password and then enter a six-digit email OTP; Google-linked users can use Continue with Google. No separate vendor registration is created.
+- `/auth/callback`: completes Google OAuth on the Vendor Center origin using PKCE.
+- `/marketplace`: approved seller gate, live listing data, product creation/editing, image gallery, variant images, inventory, paginated/searchable fulfilment orders, customer cases, deletion requests, support and shop profile information.
 - Uses existing vendor RPCs and existing RLS-protected tables/storage. No schema migrations or database DDL are included.
 - Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`; see `.env.example`.
 - Never put a service-role key in this frontend.
 
-The restaurant-oriented prototype routes remain available while their mock data is progressively replaced by approved backend integrations.
+Seller applications remain on the existing customer website. The Vendor Center does not provide a second registration form. Restaurant-oriented routes are still prototypes and are not production-ready; they must be connected and tested before enabling them for restaurant vendors.
 
 See [website vendor parity plan](docs/WEBSITE_VENDOR_PARITY.md) for the safety boundary and remaining parity work.
 
