@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { Activity, AlertCircle, Boxes, CheckCircle2, ClipboardList, Eye, EyeOff, LifeBuoy, Package, RefreshCw, ShieldCheck, Store, Truck, Wallet } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useVendorAuth } from '../context/VendorAuthContext'
-import { adjustVendorInventory, createVendorProduct, createVendorSupportTicket, finalizeVendorProductSubmission, getVendorCaseEvidenceUrl, getVendorDashboardData, getVendorDocumentSignedUrls, listVendorCategories, listVendorProductVariants, listVendorProductImages, listVendorProductDeletionRequests, listVendorOrders, listVendorSupportMessages, listVendorSupportTickets, markOrderReady, removeVendorProductImage, replyToCase, requestVendorProductDeletion, saveVendorProductVariants, sendVendorSupportMessage, setProductVisibility, setVendorPrimaryProductImage, updateVendorProduct, updateVendorShopProfile, uploadVendorProductImage, uploadVendorShopImage, uploadVendorVariantImage, type VendorCase, type VendorInventory, type VendorOrderItem, type VendorProduct, type VendorVariantInput } from '../services/marketplaceApi'
+import { adjustVendorInventory, createVendorProduct, createVendorSupportTicket, finalizeVendorProductSubmission, getVendorCaseEvidenceUrl, getVendorCommissionPreview, getVendorDashboardData, getVendorDocumentSignedUrls, listVendorCategories, listVendorProductVariants, listVendorProductImages, listVendorProductDeletionRequests, listVendorOrders, listVendorSupportMessages, listVendorSupportTickets, markOrderReady, removeVendorProductImage, replyToCase, requestVendorProductDeletion, saveVendorProductVariants, sendVendorSupportMessage, setProductVisibility, setVendorPrimaryProductImage, updateVendorProduct, updateVendorShopProfile, uploadVendorProductImage, uploadVendorShopImage, uploadVendorVariantImage, type VendorCase, type VendorInventory, type VendorOrderItem, type VendorProduct, type VendorVariantInput } from '../services/marketplaceApi'
 
 type Tab = 'overview' | 'listings' | 'inventory' | 'orders' | 'cases' | 'support' | 'settings'
 const tabs: Array<{ id: Tab; label: string; icon: typeof Activity }> = [
@@ -54,6 +54,8 @@ export function MarketplacePage() {
   const [productName, setProductName] = useState('')
   const [productCategory, setProductCategory] = useState('')
   const [productPrice, setProductPrice] = useState('')
+  const [commissionPercent, setCommissionPercent] = useState<number | null>(null)
+  const [commissionLoading, setCommissionLoading] = useState(false)
   const [productDescription, setProductDescription] = useState('')
   const [productStock, setProductStock] = useState('0')
   const [productImagesFiles, setProductImagesFiles] = useState<File[]>([])
@@ -105,6 +107,17 @@ export function MarketplacePage() {
     if (!loading && !user) navigate('/vendor-login', { replace: true })
   }, [loading, user, navigate])
   useEffect(() => { if (user && seller?.status === 'approved') void load() }, [user?.id, seller?.status, load])
+
+  useEffect(() => {
+    if (!productCategory) { setCommissionPercent(null); return }
+    let active = true
+    setCommissionLoading(true)
+    void getVendorCommissionPreview(productCategory)
+      .then(rate => { if (active) setCommissionPercent(rate) })
+      .catch(cause => { if (active) { setCommissionPercent(null); setError(cause instanceof Error ? cause.message : 'Commission could not be verified.') } })
+      .finally(() => { if (active) setCommissionLoading(false) })
+    return () => { active = false }
+  }, [productCategory])
   useEffect(() => { if (seller) void getVendorDocumentSignedUrls(seller).then(setSellerDocumentUrls).catch(() => setSellerDocumentUrls({cnicFront:null,cnicBack:null,verification:null})) }, [seller?.id, seller?.cnic_front_path, seller?.cnic_back_path, seller?.document_path])
 
   useEffect(() => {
@@ -387,7 +400,7 @@ export function MarketplacePage() {
       {showProductForm&&<form onSubmit={submitNewProduct} className="mb-5 grid gap-3 rounded-2xl bg-cream-50 p-4 sm:grid-cols-2">
         <label className="text-xs font-semibold">Product name<input required minLength={2} value={productName} onChange={e=>setProductName(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label>
         <label className="text-xs font-semibold">Category<select required value={productCategory} onChange={e=>setProductCategory(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-line bg-white px-3"><option value="">Select category</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-        <label className="text-xs font-semibold">Your base price (PKR)<input required type="number" min="1" step="0.01" value={productPrice} onChange={e=>setProductPrice(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label>
+        <label className="text-xs font-semibold">Your base price (PKR)<input required type="number" min="1" step="0.01" value={productPrice} onChange={e=>setProductPrice(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label><div className="rounded-xl border border-line bg-white p-3 text-xs sm:col-span-2"><strong>Customer price preview</strong>{commissionLoading?<p className="mt-1 text-muted">Checking category commission…</p>:commissionPercent===null?<p className="mt-1 text-muted">Select a category to load the verified commission rate.</p>:<div className="mt-2 grid gap-1 sm:grid-cols-3"><span>Your base: {money(productPrice)}</span><span>Commission ({commissionPercent}%): {money(Number(productPrice||0)*commissionPercent/100)}</span><strong>Customer price before discount: {money(Number(productPrice||0)*(1+commissionPercent/100))}</strong></div>}</div>
         <label className="text-xs font-semibold">Initial stock<input required type="number" name="initial_stock" min="0" step="1" value={productStock} onChange={e=>setProductStock(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label>
         <label className="text-xs font-semibold">SKU / product code<input name="sku" className="mt-1 h-10 w-full rounded-lg border border-line px-3" placeholder="Optional product code"/></label>
         <label className="text-xs font-semibold">Discount (%)<input name="discount_percent" type="number" min="0" max="100" step="0.01" defaultValue="0" className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label>
