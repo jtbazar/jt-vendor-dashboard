@@ -1,8 +1,17 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { AppProvider } from './store'
-import { VendorAuthProvider } from './context/VendorAuthContext'
+import { VendorAuthProvider, useVendorAuth } from './context/VendorAuthContext'
 import { VendorLoginPage } from './pages/VendorLogin'
 import { VendorAuthCallbackPage } from './pages/VendorAuthCallback'
+
+function VendorAccessLayout() {
+  const { user, seller, loading, configured } = useVendorAuth()
+  if (!configured) return <Navigate to="/vendor-login" replace />
+  if (loading) return <main className="min-h-screen grid place-items-center text-sm text-muted">Checking your JTBazar seller access…</main>
+  if (!user) return <Navigate to="/vendor-login" replace />
+  if (!seller || seller.status !== 'approved') return <MarketplacePage />
+  return <Layout />
+}
 import { MarketplacePage } from './pages/Marketplace'
 import { Layout } from './components/Layout'
 import { OverviewPage } from './pages/Overview'
@@ -26,9 +35,9 @@ export default function App() {
         <Routes>
           <Route path="/vendor-login" element={<VendorLoginPage />} />
           <Route path="/auth/callback" element={<VendorAuthCallbackPage />} />
-          <Route element={<Layout />}>
+          <Route element={<VendorAccessLayout />}>
             <Route path="/marketplace" element={<MarketplacePage />} />
-            <Route index element={<OverviewPage />} />
+            <Route index element={<Navigate to="/marketplace" replace />} />
             <Route path="orders" element={<OrdersPage />} />
             <Route path="kitchen" element={<KitchenPage />} />
             <Route path="menu" element={<MenuPage />} />
