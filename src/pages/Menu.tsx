@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ExternalLink, Eye, EyeOff, LoaderCircle, Package, RefreshCw, Search } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import { Badge, Button, Card, PageHeader } from '../components/ui'
 import { useVendorAuth } from '../context/VendorAuthContext'
 import {
@@ -112,15 +111,15 @@ export function MenuPage() {
       <PageHeader
         eyebrow={<><Package size={12} /> Product catalogue</>}
         title={businessName === 'menu' ? 'Your menu, kept up to date.' : 'Your products, your business.'}
-        description="This list is loaded from your approved JTBazar seller account. Changes here update your real marketplace listings; unavailable sales and margin metrics are not estimated."
+        description="This list is loaded from your approved JTBazar seller account. Visibility changes here update your real marketplace listings. The full create/edit listing form is still being migrated into this original Vendor Center UI."
         actions={
           <>
             <Button variant="secondary" onClick={() => void load(true)} disabled={refreshing || loading}>
               {refreshing ? <LoaderCircle size={14} className="animate-spin" /> : <RefreshCw size={14} />} Refresh
             </Button>
-            <Link to="/marketplace" className="inline-flex h-9 items-center gap-2 rounded-lg bg-forest px-3 text-[11px] font-semibold text-white hover:bg-forest/90">
-              Manage listings <ExternalLink size={13} />
-            </Link>
+            <Button variant="primary" disabled title="The full listing editor is still being migrated into the original Vendor Center UI.">
+              Listing editor in progress <ExternalLink size={13} />
+            </Button>
           </>
         }
       />
