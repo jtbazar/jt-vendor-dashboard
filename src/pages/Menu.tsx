@@ -62,7 +62,6 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
   const [variantFiles, setVariantFiles] = useState<Record<string, File>>({})
   const [loadingDetails, setLoadingDetails] = useState(Boolean(product?.id))
 
-  const categoryMap = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories])
 
   useEffect(() => {
     let active = true
