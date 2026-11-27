@@ -402,8 +402,8 @@ export function PromotionsPage() {
           <div className="grid gap-3 sm:grid-cols-3">
             {[
               { label: 'Coupon redemptions', value: couponUses.toLocaleString(), note: 'Across all active codes' },
-              { label: 'Discount given', value: formatPKR(18420), note: 'This month' },
-              { label: 'Avg redeemed order', value: formatPKR(2140), note: 'Higher than non-promo orders' },
+              { label: 'Discount given', value: '—', note: 'Live redemption data not connected' },
+              { label: 'Avg redeemed order', value: '—', note: 'Live order attribution not connected' },
             ].map((stat) => (
               <Card key={stat.label} className="p-4">
                 <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted">{stat.label}</p>
