@@ -41,7 +41,8 @@ function VendorAccessRoute() {
         <Route element={<Layout />}>
           <Route index element={<OverviewPage />} />
           <Route path="orders" element={<OrdersPage />} />
-          <Route path="menu" element={<MenuPage />} />
+          <Route path="products" element={<MenuPage />} />
+          <Route path="menu" element={<Navigate to="/products" replace />} />
           <Route path="promotions" element={<PromotionsPage />} />
           <Route path="reviews" element={<ReviewsPage />} />
           <Route path="inventory" element={<InventoryPage />} />
