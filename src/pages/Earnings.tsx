@@ -179,7 +179,7 @@ export function EarningsPage() {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
           { label: 'Gross food sales', value: gross, note: '17 – 23 Nov', icon: ReceiptText, accent: false },
-          { label: 'JTBazar commission', value: commission, note: `${store.commissionRate}% of food subtotal`, icon: Banknote, accent: true },
+          { label: 'JTBazar commission', value: commission, note: store.commissionRate > 0 ? `${store.commissionRate}% of order subtotal` : 'Rate unavailable', icon: Banknote, accent: true },
           { label: 'Net earnings', value: net, note: 'After commission', icon: Wallet, accent: false },
           { label: 'COD collected by you', value: codWithVendor, note: 'Own rider + pickup', icon: CheckCircle2, accent: false },
         ].map((stat) => {
@@ -222,7 +222,7 @@ export function EarningsPage() {
                 <span className="font-semibold text-ink tabular">{formatPKR(codWithVendor)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted">Commission due · {store.commissionRate}%</span>
+                <span className="text-muted">Commission due · {store.commissionRate > 0 ? `${store.commissionRate}%` : '—'}</span>
                 <span className="font-semibold text-[#A14B38] tabular">− {formatPKR(commissionDue)}</span>
               </div>
               <div className="flex items-center justify-between border-t border-[#F0EDE4] pt-2">
@@ -254,7 +254,7 @@ export function EarningsPage() {
                 <span className="font-semibold text-ink tabular">{formatPKR(codWithJtb)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted">Commission deducted · {store.commissionRate}%</span>
+                <span className="text-muted">Commission deducted · {store.commissionRate > 0 ? `${store.commissionRate}%` : '—'}</span>
                 <span className="font-semibold text-[#A14B38] tabular">− {formatPKR(jtbCommission)}</span>
               </div>
               <div className="flex items-center justify-between border-t border-[#F0EDE4] pt-2">
