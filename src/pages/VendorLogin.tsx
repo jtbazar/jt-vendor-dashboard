@@ -20,7 +20,7 @@ export function VendorLoginPage() {
     return () => window.clearTimeout(timer)
   }, [resendSeconds])
 
-  async function submitPassword(event: FormEvent) {
+  async function submitPassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setBusy(true); setError(''); setNotice('')
     try {
@@ -36,9 +36,16 @@ export function VendorLoginPage() {
     } finally { setBusy(false) }
   }
 
-  async function submitOtp(event: FormEvent) {
+  async function submitGoogle() {
+    setBusy(true); setError(''); setNotice('')
+    try { await startVendorGoogleSignIn(email) }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'Google sign-in could not be started.') }
+    finally { setBusy(false) }
+  }
+
+  async function submitOtp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!/^\d{6}$/.test(otp)) { setError('Enter the 6-digit code from your email.'); return }
+    if (!/^\\d{6}$/.test(otp)) { setError('Enter the 6-digit code from your email.'); return }
     setBusy(true); setError(''); setNotice('')
     try {
       const result = await verifyVendorLoginOtp(email, otp)
@@ -46,6 +53,18 @@ export function VendorLoginPage() {
       navigate('/marketplace', { replace: true })
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'The verification code could not be confirmed.')
+    } finally { setBusy(false) }
+  }
+
+  async function resendOtp() {
+    setBusy(true); setError(''); setNotice('')
+    try {
+      const result = await sendVendorLoginOtp(email)
+      if (result.error) throw new Error(result.error.message)
+      setResendSeconds(60)
+      setNotice('A new verification code has been sent.')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'The code could not be resent.')
     } finally { setBusy(false) }
   }
 
@@ -57,26 +76,22 @@ export function VendorLoginPage() {
       </div>
       {step === 'password' ? <>
         <h1 className="font-display text-2xl font-semibold text-forest">Sign in to your shop</h1>
-        <p className="mt-2 text-sm text-muted">Already registered with Google? Enter that same JTBazar account email and continue with Google.</p>
-        <form className="mt-4 space-y-3" onSubmit={async (event) => { event.preventDefault(); setBusy(true); setError(''); setNotice(''); try { await startVendorGoogleSignIn(email); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Google sign-in could not be started.'); setBusy(false); } }}>
-          <label className="block text-sm font-medium">Google account email<div className="mt-1 flex items-center gap-2 rounded-xl border border-line px-3"><Mail size={16} className="text-muted"/><input className="h-11 w-full outline-none" type="email" autoComplete="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"/></div></label>
-          <button disabled={busy} type="submit" className="h-11 w-full rounded-xl border border-line bg-white px-4 text-sm font-semibold text-forest disabled:opacity-60">{busy ? 'Connecting…' : 'Continue with Google'}</button>
-        </form>
+        <p className="mt-2 text-sm text-muted">Use the same email as your existing JTBazar customer account. No separate vendor registration is needed.</p>
+        <label className="mt-5 block text-sm font-medium">JTBazar account email<div className="mt-1 flex items-center gap-2 rounded-xl border border-line px-3"><Mail size={16} className="text-muted"/><input className="h-11 w-full outline-none" type="email" autoComplete="email" required value={email} onChange={e=>setEmail(e.target.value.trim())} placeholder="you@example.com"/></div></label>
+        <button type="button" disabled={busy || !email.trim()} onClick={()=>void submitGoogle()} className="mt-4 h-11 w-full rounded-xl border border-line bg-white px-4 text-sm font-semibold text-forest disabled:opacity-60">{busy ? 'Connecting…' : 'Continue with Google'}</button>
         <div className="my-5 flex items-center gap-3 text-xs text-muted"><span className="h-px flex-1 bg-line"/><span>OR USE EMAIL + PASSWORD</span><span className="h-px flex-1 bg-line"/></div>
-        <p className="mt-2 text-sm text-muted">Use your existing JTBazar account. We verify your password first, then email a one-time code.</p>
-        <form className="mt-6 space-y-4" onSubmit={submitPassword}>
-          <label className="block text-sm font-medium">Email address<div className="mt-1 flex items-center gap-2 rounded-xl border border-line px-3"><Mail size={16} className="text-muted"/><input className="h-11 w-full outline-none" type="email" autoComplete="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"/></div></label>
-          <label className="block text-sm font-medium">Password<div className="mt-1 flex items-center gap-2 rounded-xl border border-line px-3"><LockKeyhole size={16} className="text-muted"/><input className="h-11 w-full w-full outline-none" type="password" autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)}/></div></label>
-          <button type="submit" disabled={busy} className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-forest px-4 text-sm font-semibold text-white disabled:opacity-60">{busy?'Checking…':'Continue'} <ArrowRight size={16}/></button>
+        <form className="space-y-4" onSubmit={submitPassword}>
+          <label className="block text-sm font-medium">Password<div className="mt-1 flex items-center gap-2 rounded-xl border border-line px-3"><LockKeyhole size={16} className="text-muted"/><input className="h-11 w-full outline-none" type="password" autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)}/></div></label>
+          <button type="submit" disabled={busy || !email.trim()} className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-forest px-4 text-sm font-semibold text-white disabled:opacity-60">{busy?'Checking…':'Continue'} <ArrowRight size={16}/></button>
         </form>
       </> : <>
         <h1 className="font-display text-2xl font-semibold text-forest">Verify your email</h1>
         <p className="mt-2 text-sm text-muted">Enter the 6-digit code sent to <strong>{email}</strong>.</p>
         <form className="mt-6 space-y-4" onSubmit={submitOtp}>
-          <label className="block text-sm font-medium">Email verification code<input className="mt-1 h-12 w-full rounded-xl border border-line px-4 text-center text-xl tracking-[.35em] outline-none" inputMode="numeric" autoComplete="one-time-code" maxLength={6} required value={otp} onChange={e=>setOtp(e.target.value.replace(/\D/g,'').slice(0,6))}/></label>
+          <label className="block text-sm font-medium">Email verification code<input className="mt-1 h-12 w-full rounded-xl border border-line px-4 text-center text-xl tracking-[.35em] outline-none" inputMode="numeric" autoComplete="one-time-code" maxLength={6} required value={otp} onChange={e=>setOtp(e.target.value.replace(/\\D/g,'').slice(0,6))}/></label>
           <button type="submit" disabled={busy} className="h-11 w-full rounded-xl bg-forest px-4 text-sm font-semibold text-white disabled:opacity-60">{busy?'Verifying…':'Verify and sign in'}</button>
-          <button type="button" disabled={busy || resendSeconds > 0} onClick={async()=>{setBusy(true);setError('');setNotice('');try{const result=await sendVendorLoginOtp(email);if(result.error)throw new Error(result.error.message);setResendSeconds(60);setNotice('A new verification code has been sent.')}catch(cause){setError(cause instanceof Error?cause.message:'The code could not be resent.')}finally{setBusy(false)}}} className="w-full text-sm font-medium text-sage-700 disabled:opacity-50">{resendSeconds > 0 ? `Resend code in ${resendSeconds}s` : 'Resend verification code'}</button>
-          <button type="button" disabled={busy} onClick={()=>{setStep('password');setOtp('');setNotice('');setResendSeconds(0)}} className="w-full text-sm font-medium text-sage-700">Back to password</button>
+          <button type="button" disabled={busy || resendSeconds > 0} onClick={()=>void resendOtp()} className="w-full text-sm font-medium text-sage-700 disabled:opacity-50">{resendSeconds > 0 ? `Resend code in ${resendSeconds}s` : 'Resend verification code'}</button>
+          <button type="button" disabled={busy} onClick={()=>{setStep('password');setOtp('');setNotice('');setResendSeconds(0)}} className="w-full text-sm font-medium text-sage-700">Back to sign in</button>
         </form>
       </>}
       {notice && <p role="status" className="mt-4 rounded-xl bg-sage-50 p-3 text-sm text-sage-800">{notice}</p>}
