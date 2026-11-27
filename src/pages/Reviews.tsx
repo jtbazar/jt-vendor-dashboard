@@ -79,13 +79,13 @@ export function ReviewsPage() {
       <PageHeader
         eyebrow={<><Star size={12} /> Customer feedback</>}
         title="Reputation is a kitchen metric."
-        description="Read every review, reply publicly and spot recurring issues before they affect your rating. Replies appear under your shop on the storefront and Android app."
+        description="Only verified seller reviews should appear here. The live seller-review feed is not connected yet, so sample ratings and feedback have been removed."
         actions={
           <>
-            <Button variant="secondary" onClick={() => pushToast('Feedback export', 'A review export would download here in the live product.', 'info')}>
+            <Button variant="secondary" disabled>
               Export feedback
             </Button>
-            <Button variant="primary" onClick={() => pushToast('Storefront preview', 'Opening your public shop page in a new tab.', 'info')}>
+            <Button variant="primary" disabled>
               View public page <ArrowUpRight size={14} />
             </Button>
           </>
