@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Activity, AlertCircle, Boxes, CheckCircle2, ClipboardList, Eye, EyeOff, Package, RefreshCw, ShieldCheck, Store, Truck } from 'lucide-react'
+import { Activity, AlertCircle, Boxes, CheckCircle2, ClipboardList, Eye, EyeOff, Package, RefreshCw, ShieldCheck, Store, Truck, Wallet } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useVendorAuth } from '../context/VendorAuthContext'
 import { createVendorProduct, finalizeVendorProductSubmission, getVendorDashboardData, listVendorCategories, markOrderReady, replyToCase, setProductStock, setProductVisibility, uploadVendorProductImage, type VendorCase, type VendorInventory, type VendorOrderItem, type VendorProduct } from '../services/marketplaceApi'
