@@ -69,10 +69,10 @@ export function CustomersPage() {
       <PageHeader
         eyebrow={<><Users size={12} /> Customers &amp; reviews</>}
         title="Know the people behind the orders."
-        description="Order-related customer details, lifetime spend and fulfilment preferences. Use this to recognise regulars, prepare their favourites and resolve order issues faster."
+        description="Customer summaries and lifetime-value reporting will appear when the seller-scoped customer API is connected. No sample customer profiles or spending totals are shown."
         actions={
           <>
-            <Button variant="secondary" onClick={() => pushToast('Customer export', 'A CSV of the customer directory would download here.', 'info')}>
+            <Button variant="secondary" disabled>
               <Download size={14} /> Export
             </Button>
             <Link to="/reviews">
