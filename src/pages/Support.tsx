@@ -391,7 +391,7 @@ export function SupportPage() {
                           {fromSupport ? 'JTBazar support' : 'You'} · {entry.time}
                         </p>
                       </div>
-                      {!fromSupport ? <Avatar name="Bilal Ahmed" size={24} /> : null}
+                      {!fromSupport ? <Avatar name="Vendor" size={24} /> : null}
                     </div>
                   )
                 })}
