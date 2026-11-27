@@ -264,6 +264,37 @@ export async function saveVendorProductVariants(productId: string, variants: Ven
   assertNoError(error)
 }
 
+export async function updateVendorProduct(productId: string, input: {
+  category_id: string | null; name: string; slug: string; sku: string | null;
+  short_description: string; description: string; price: number;
+  supplier_cost: number | null; fulfillment_expense: number; minimum_profit: number;
+  discount_percent: number; weight_grams: number | null; specifications: unknown;
+  dimensions: unknown; seo_title: string | null; seo_description: string | null;
+}) {
+  const { data, error } = await getSupabase().rpc('vendor_update_product', {
+    p_product_id: productId,
+    p_category_id: input.category_id,
+    p_name: input.name,
+    p_slug: input.slug,
+    p_sku: input.sku,
+    p_short_description: input.short_description,
+    p_description: input.description,
+    p_price: input.price,
+    p_supplier_cost: input.supplier_cost,
+    p_fulfillment_expense: input.fulfillment_expense,
+    p_minimum_profit: input.minimum_profit,
+    p_discount_percent: input.discount_percent,
+    p_weight_grams: input.weight_grams,
+    p_specifications: input.specifications,
+    p_dimensions: input.dimensions,
+    p_seo_title: input.seo_title,
+    p_seo_description: input.seo_description,
+  })
+  assertNoError(error)
+  if (!data) throw new Error('The product was not updated.')
+  return data as VendorProduct
+}
+
 export async function listVendorCategories(): Promise<Array<{ id: string; name: string; parent_id: string | null }>> {
   const { data, error } = await getSupabase().from('categories')
     .select('id, name, parent_id')
