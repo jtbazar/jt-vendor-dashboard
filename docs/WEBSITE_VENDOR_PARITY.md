@@ -25,8 +25,9 @@
 - [x] Added Vendor Center Supabase client configuration with a dedicated auth storage key.
 - [x] Added existing-customer password verification followed by six-digit email OTP sign-in.
 - [x] Added existing Google-linked customer sign-in with email lookup, PKCE OAuth callback and email identity matching.
-- [x] Added a 60-second resend cooldown for email OTP.
-- [x] Protected Vendor Center routes so only approved sellers can see the workspace; non-approved accounts see their application status instead.
+- [x] Added a 60-second resend cooldown for email OTP and a link to the existing customer password-recovery page.
+- [x] Protected Vendor Center routes so only approved, unlocked sellers can see the workspace; pending/rejected accounts see their application status instead.
+- [x] Reused the existing customer account suspension notification and auth-ban checks to block suspended accounts.
 - [x] Kept seller registration/application on the customer website; no second vendor registration is introduced.
 - [x] Added approved-seller status gate.
 - [x] Added live product listing, inventory, vendor order, and customer case reads.
