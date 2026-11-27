@@ -44,6 +44,7 @@
 - [ ] Complete inventory history and full order-detail/customer-delivery parity.
 - [ ] Complete shop settings parity: hours, delivery radius, map/location visibility, business documents and secure settlement details.
 - [ ] Finish earnings, commission, settlement, analytics and all restaurant modules against verified existing backend surfaces.
+- [x] Keep mock restaurant / kitchen routes out of the live router so vendors cannot mistake prototype balances or orders for real data.
 - [ ] Validate against a dedicated staging account and run end-to-end regression tests.
 - [ ] Obtain owner approval before any production deployment.
 
