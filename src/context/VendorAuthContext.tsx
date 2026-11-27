@@ -63,7 +63,7 @@ export function VendorAuthProvider({ children }: { children: ReactNode }) {
       }
       setLoading(true)
       queueMicrotask(() => {
-        void refreshSeller().catch(() => setSeller(null)).finally(() => {
+        void refreshSeller().catch(() => { setSeller(null); setSuspensionReason(null) }).finally(() => {
           if (active) setLoading(false)
         })
       })
@@ -73,7 +73,7 @@ export function VendorAuthProvider({ children }: { children: ReactNode }) {
       if (!receivedAuthEvent) {
         setSession(error ? null : data.session)
         if (data.session?.user) {
-          try { await refreshSeller() } catch { setSeller(null) }
+          try { await refreshSeller() } catch { setSeller(null); setSuspensionReason(null) }
         }
         if (active) setLoading(false)
       }
