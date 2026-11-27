@@ -36,7 +36,7 @@ const fulfilmentIcons = {
 } as const
 
 export function CustomersPage() {
-  const { orders, pushToast } = useApp()
+  const { orders } = useApp()
   const [search, setSearch] = useState('')
   const [fulfilment, setFulfilment] = useState<'all' | Fulfilment>('all')
   const [selected, setSelected] = useState<Customer | null>(null)
