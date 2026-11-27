@@ -33,6 +33,40 @@ export function verifyVendorLoginOtp(email: string, token: string) {
   return getSupabase().auth.verifyOtp({ email: email.trim().toLowerCase(), token, type: 'email' })
 }
 
+export async function startVendorGoogleSignIn(email: string) {
+  const normalizedEmail = email.trim().toLowerCase()
+  if (!normalizedEmail) throw new Error('Enter the email address already registered on your JTBazar account.')
+  const { data: method, error: lookupError } = await getSupabase().rpc('get_auth_method_for_email', { p_email: normalizedEmail })
+  assertNoError(lookupError)
+  if (method !== 'google' && method !== 'mixed') {
+    throw new Error(method === 'password'
+      ? 'This JTBazar account uses email and password. Please use the email + OTP sign-in instead.'
+      : 'No existing JTBazar Google account was found for this email. Apply as a customer on JTBazar first.')
+  }
+  const callback = new URL('/auth/callback?provider=google&next=%2Fmarketplace&expected_email=' + encodeURIComponent(normalizedEmail), window.location.origin).toString()
+  const { error } = await getSupabase().auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: callback, queryParams: { login_hint: normalizedEmail, prompt: 'select_account' } },
+  })
+  assertNoError(error)
+}
+
+export async function completeVendorGoogleSignIn(code: string, expectedEmail: string) {
+  const { data, error } = await getSupabase().auth.exchangeCodeForSession(code)
+  assertNoError(error)
+  const actualEmail = data.session?.user.email?.trim().toLowerCase() ?? ''
+  if (!data.session || actualEmail !== expectedEmail.trim().toLowerCase()) {
+    await getSupabase().auth.signOut({ scope: 'local' })
+    throw new Error('The Google account selected does not match the existing JTBazar email. Please try again.')
+  }
+  const identities = data.session.user.identities ?? []
+  if (!identities.some((identity) => identity.provider === 'google')) {
+    await getSupabase().auth.signOut({ scope: 'local' })
+    throw new Error('This account is not linked to Google. Please use email + OTP sign-in.')
+  }
+  return data.session
+}
+
 export async function getSellerProfile(): Promise<SellerProfile | null> {
   const client = getSupabase()
   const { data: { user }, error: authError } = await client.auth.getUser()
