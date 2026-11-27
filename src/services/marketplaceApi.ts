@@ -539,6 +539,7 @@ export async function createVendorSupportTicket(sellerId: string, subject: strin
     .select('id').single()
   assertNoError(error)
   if (!data) throw new Error('Support ticket could not be confirmed.')
+  try { await client.functions.invoke('support-email', { body: { ticket_id: data.id, ticket_kind: 'seller', event: 'created' } }) } catch { /* Ticket creation remains successful if email notification is unavailable. */ }
   return data.id
 }
 
