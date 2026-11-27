@@ -7,7 +7,6 @@ export function VendorLoginPage() {
   const navigate = useNavigate()
   const [step, setStep] = useState<'password' | 'otp'>('password')
   const [email, setEmail] = useState('')
-  const [googleEmail, setGoogleEmail] = useState('')
   const [password, setPassword] = useState('')
   const [otp, setOtp] = useState('')
   const [busy, setBusy] = useState(false)
@@ -59,8 +58,8 @@ export function VendorLoginPage() {
       {step === 'password' ? <>
         <h1 className="font-display text-2xl font-semibold text-forest">Sign in to your shop</h1>
         <p className="mt-2 text-sm text-muted">Already registered with Google? Enter that same JTBazar account email and continue with Google.</p>
-        <form className="mt-4 space-y-3" onSubmit={async (event) => { event.preventDefault(); setBusy(true); setError(''); setNotice(''); try { await startVendorGoogleSignIn(googleEmail); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Google sign-in could not be started.'); setBusy(false); } }}>
-          <label className="block text-sm font-medium">Google account email<div className="mt-1 flex items-center gap-2 rounded-xl border border-line px-3"><Mail size={16} className="text-muted"/><input className="h-11 w-full outline-none" type="email" autoComplete="email" required value={googleEmail} onChange={e=>setGoogleEmail(e.target.value)} placeholder="you@example.com"/></div></label>
+        <form className="mt-4 space-y-3" onSubmit={async (event) => { event.preventDefault(); setBusy(true); setError(''); setNotice(''); try { await startVendorGoogleSignIn(email); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Google sign-in could not be started.'); setBusy(false); } }}>
+          <label className="block text-sm font-medium">Google account email<div className="mt-1 flex items-center gap-2 rounded-xl border border-line px-3"><Mail size={16} className="text-muted"/><input className="h-11 w-full outline-none" type="email" autoComplete="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"/></div></label>
           <button disabled={busy} type="submit" className="h-11 w-full rounded-xl border border-line bg-white px-4 text-sm font-semibold text-forest disabled:opacity-60">{busy ? 'Connecting…' : 'Continue with Google'}</button>
         </form>
         <div className="my-5 flex items-center gap-3 text-xs text-muted"><span className="h-px flex-1 bg-line"/><span>OR USE EMAIL + PASSWORD</span><span className="h-px flex-1 bg-line"/></div>
