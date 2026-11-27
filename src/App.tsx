@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppProvider } from './store'
 import { VendorAuthProvider } from './context/VendorAuthContext'
 import { VendorLoginPage } from './pages/VendorLogin'
+import { VendorAuthCallbackPage } from './pages/VendorAuthCallback'
 import { MarketplacePage } from './pages/Marketplace'
 import { Layout } from './components/Layout'
 import { OverviewPage } from './pages/Overview'
@@ -24,6 +25,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/vendor-login" element={<VendorLoginPage />} />
+          <Route path="/auth/callback" element={<VendorAuthCallbackPage />} />
           <Route element={<Layout />}>
             <Route path="/marketplace" element={<MarketplacePage />} />
             <Route index element={<OverviewPage />} />
