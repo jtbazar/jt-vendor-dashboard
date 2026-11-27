@@ -656,6 +656,20 @@ export async function updateVendorShopProfile(input: {
   return data
 }
 
+
+export async function finalizeVendorProductSubmission(productId: string): Promise<VendorProduct> {
+  const { data, error } = await getSupabase().rpc('vendor_finalize_product_submission', { p_product_id: productId })
+  assertNoError(error)
+  if (!data) throw new Error('The product submission could not be finalized.')
+  return data as VendorProduct
+}
+
+export async function removeVendorShopImage(path: string) {
+  if (!path) return
+  const { error } = await getSupabase().storage.from('shop-images').remove([path])
+  assertNoError(error)
+}
+
 export async function getVendorDashboardData() {
   const [profile, products, inventory, orders, cases] = await Promise.all([
     getSellerProfile(),
