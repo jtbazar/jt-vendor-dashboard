@@ -25,7 +25,6 @@ pnpm preview
 | --- | --- |
 | `/vendor-login` | Existing-account password check followed by six-digit email OTP |
 | `/marketplace` | Live marketplace listings, product creation/editing, variants, inventory, fulfilment, customer cases, support and shop profile |
-| --- | --- |
 | `/` | Overview — live KPIs, revenue chart, COD settlement, live orders, kitchen queue, stock and promotions |
 | `/orders` | Order queue — filters, search, order drawer, accepted → preparing → ready lifecycle and COD direction notes |
 | `/kitchen` | Kitchen board — new / accepted / preparing / ready columns with prep timers and handover |
