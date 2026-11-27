@@ -1,8 +1,6 @@
-# JTBazar Vendor Center — UI Prototype
+# JTBazar Vendor Center
 
-A standalone vendor dashboard for JTBazar, designed around the restaurant / kitchen
-vendor journey described in the Phase-Wise Vendor Plan. This is a **UI prototype**:
-all data is local mock data and no backend, auth or database is connected.
+A standalone JTBazar Vendor Center. The restaurant / kitchen workspace remains a UI prototype with local mock data; the `/marketplace` route now connects to the existing JTBazar Supabase backend for approved marketplace sellers.
 
 ## Run locally
 
@@ -24,6 +22,9 @@ pnpm preview
 ## Pages
 
 | Route | What it covers |
+| --- | --- |
+| `/vendor-login` | Existing-account password check followed by six-digit email OTP |
+| `/marketplace` | Live marketplace listings, product creation/editing, variants, inventory, fulfilment, customer cases, support and shop profile |
 | --- | --- |
 | `/` | Overview — live KPIs, revenue chart, COD settlement, live orders, kitchen queue, stock and promotions |
 | `/orders` | Order queue — filters, search, order drawer, accepted → preparing → ready lifecycle and COD direction notes |
@@ -85,6 +86,7 @@ The prototype follows the restaurant vendor rules in
 - Images are loaded from Unsplash and need an internet connection.
 - Payout, commission, COD and settlement screens are illustrative and marked as a
   prototype; no real money movement or persistence is implemented.
-- This project is a separate frontend prototype, matching the plan's recommendation
-  to keep the Customer website and Vendor Center as separate frontends. No Supabase
-  project, auth, migration, Android app or Admin dashboard is connected.
+- This project is a separate frontend, matching the plan's recommendation to keep the Customer website and Vendor Center separate.
+- The marketplace route uses the existing JTBazar Supabase project and existing RLS/RPC surfaces; no migrations or schema changes are included in this repository work.
+- Restaurant prototype routes still use mock data; they are not yet connected to real restaurant orders, menu, settlements or driver operations.
+- No Android app or Admin dashboard is included in this repository.
