@@ -14,7 +14,6 @@ function VendorAccessLayout() {
 }
 import { MarketplacePage } from './pages/Marketplace'
 import { Layout } from './components/Layout'
-import { OverviewPage } from './pages/Overview'
 import { OrdersPage } from './pages/Orders'
 import { KitchenPage } from './pages/Kitchen'
 import { MenuPage } from './pages/Menu'
