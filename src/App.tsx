@@ -24,8 +24,8 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/vendor-login" element={<VendorLoginPage />} />
-          <Route path="/marketplace" element={<MarketplacePage />} />
           <Route element={<Layout />}>
+            <Route path="/marketplace" element={<MarketplacePage />} />
             <Route index element={<OverviewPage />} />
             <Route path="orders" element={<OrdersPage />} />
             <Route path="kitchen" element={<KitchenPage />} />
