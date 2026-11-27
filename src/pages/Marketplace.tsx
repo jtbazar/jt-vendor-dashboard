@@ -138,7 +138,7 @@ export function MarketplacePage() {
     if (!stockTarget) return
     if (await runAction(() => setProductInventory(stockTarget.product_id, Number(stockValue), stockNote, stockTarget.variant_id), 'Inventory updated.')) setStockTarget(null)
   }
-  async function submitNewProduct(event: FormEvent) {
+  async function submitNewProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!productImagesFiles.length) { setError('Add at least one clear product image.'); return }
     const cleanName = productName.trim()
@@ -191,7 +191,7 @@ export function MarketplacePage() {
     setShowProductForm(false)
   }
 
-  async function submitProductEdit(event: FormEvent) {
+  async function submitProductEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!editingProduct) return
     const data = new FormData(event.currentTarget)
@@ -311,7 +311,7 @@ export function MarketplacePage() {
     }
   }
 
-  async function saveShopProfile(event: FormEvent) {
+  async function saveShopProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
     const latitudeRaw = String(form.get('shop_lat') ?? '').trim()
