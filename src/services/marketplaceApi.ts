@@ -10,6 +10,24 @@ function assertNoError(error: { message: string } | null) {
   if (error) throw new Error(error.message)
 }
 
+async function compressVendorImage(file: File): Promise<File> {
+  if (typeof createImageBitmap !== 'function') return file
+  try {
+    const bitmap = await createImageBitmap(file)
+    const scale = Math.min(1, 1800 / Math.max(bitmap.width, bitmap.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+    const context = canvas.getContext('2d')
+    if (!context) { bitmap.close(); return file }
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    bitmap.close()
+    const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/webp', 0.84))
+    if (!blob || blob.size >= file.size) return file
+    return new File([blob], file.name.replace(/\\.[^.]+$/, '') + '.webp', { type: 'image/webp', lastModified: Date.now() })
+  } catch { return file }
+}
+
 export async function verifyVendorPassword(email: string, password: string) {
   const client = createEphemeralSupabase()
   let error: { message: string; code?: string } | null = null
@@ -348,10 +366,11 @@ export async function uploadVendorProductImage(productId: string, file: File, al
   const { data: { user }, error: authError } = await client.auth.getUser()
   assertNoError(authError)
   if (!user) throw new Error('Sign in before uploading a product image.')
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-')
+  const optimizedFile = await compressVendorImage(file)
+  const safeName = optimizedFile.name.replace(/[^a-zA-Z0-9._-]/g, '-')
   const path = `${user.id}/${productId}/${crypto.randomUUID()}-${safeName}`
-  const { error: uploadError } = await client.storage.from('product-images').upload(path, file, {
-    cacheControl: '31536000', upsert: false, contentType: file.type,
+  const { error: uploadError } = await client.storage.from('product-images').upload(path, optimizedFile, {
+    cacheControl: '31536000', upsert: false, contentType: optimizedFile.type,
   })
   assertNoError(uploadError)
   const { data: existing, error: listError } = await client.from('product_images')
@@ -369,6 +388,92 @@ export async function uploadVendorProductImage(productId: string, file: File, al
     await client.storage.from('product-images').remove([path])
     throw new Error(insertError.message)
   }
+}
+
+export async function listVendorProductImages(productId: string) {
+  const client = getSupabase()
+  const { data, error } = await client.from('product_images')
+    .select('id, image_url, storage_path, alt_text, sort_order, is_primary')
+    .eq('product_id', productId).order('sort_order', { ascending: true }).limit(100)
+  assertNoError(error)
+  return (data ?? []).map((image: any) => ({
+    ...image,
+    url: image.image_url || (image.storage_path ? client.storage.from('product-images').getPublicUrl(image.storage_path).data.publicUrl : ''),
+  })).filter((image: any) => image.url)
+}
+
+export async function uploadVendorVariantImage(productId: string, file: File) {
+  if (file.size > 10 * 1024 * 1024) throw new Error('Variant images must be 10 MB or smaller.')
+  if (!['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(file.type)) throw new Error('Choose a JPG, PNG, WebP or AVIF variant image.')
+  const client = getSupabase()
+  const { data: { user }, error: authError } = await client.auth.getUser()
+  assertNoError(authError)
+  if (!user) throw new Error('Sign in before uploading a variant image.')
+  const optimizedFile = await compressVendorImage(file)
+  const safeName = optimizedFile.name.replace(/[^a-zA-Z0-9._-]/g, '-')
+  const path = `${user.id}/${productId}/variants/${crypto.randomUUID()}-${safeName}`
+  const { error } = await client.storage.from('product-images').upload(path, optimizedFile, { cacheControl: '31536000', upsert: false, contentType: optimizedFile.type })
+  assertNoError(error)
+  return client.storage.from('product-images').getPublicUrl(path).data.publicUrl
+}
+
+export async function setVendorPrimaryProductImage(productId: string, imageId: string) {
+  const client = getSupabase()
+  const { error: clearError } = await client.from('product_images').update({ is_primary: false }).eq('product_id', productId)
+  assertNoError(clearError)
+  const { error } = await client.from('product_images').update({ is_primary: true }).eq('id', imageId).eq('product_id', productId)
+  assertNoError(error)
+}
+
+export async function removeVendorProductImage(imageId: string, storagePath: string | null) {
+  const client = getSupabase()
+  const { error } = await client.from('product_images').delete().eq('id', imageId)
+  assertNoError(error)
+  if (storagePath) {
+    const { error: storageError } = await client.storage.from('product-images').remove([storagePath])
+    assertNoError(storageError)
+  }
+}
+
+export async function requestVendorProductDeletion(productId: string, reason: string) {
+  if (reason.trim().length < 3) throw new Error('Please provide a reason for the deletion request.')
+  const { error } = await getSupabase().rpc('vendor_request_product_deletion', { p_product_id: productId, p_reason: reason.trim() })
+  assertNoError(error)
+}
+
+export async function listVendorProductDeletionRequests(): Promise<Array<{ product_id: string; status: string }>> {
+  const { data, error } = await getSupabase().from('product_deletion_requests')
+    .select('product_id,status').order('created_at', { ascending: false }).limit(200)
+  assertNoError(error)
+  return data ?? []
+}
+
+export async function adjustVendorInventory(inventoryId: string, quantity: number, note: string) {
+  if (!Number.isInteger(quantity) || quantity < 0) throw new Error('Stock must be a whole number of zero or more.')
+  const { error } = await getSupabase().rpc('vendor_adjust_inventory', { p_inventory_id: inventoryId, p_new_quantity: quantity, p_note: note.trim() })
+  assertNoError(error)
+}
+
+export async function setVendorDailyAvailability(input: { productId: string; isDailyItem: boolean; availableQuantity: number; minimumQuantity?: number; minimumOrderValue?: number | null; shopIsOpen?: boolean | null }) {
+  if (!Number.isInteger(input.availableQuantity) || input.availableQuantity < 0) throw new Error('Daily availability must be a whole number of zero or more.')
+  const { data, error } = await getSupabase().rpc('vendor_set_daily_availability', {
+    p_product_id: input.productId, p_is_daily_item: input.isDailyItem,
+    p_available_quantity: input.availableQuantity, p_minimum_quantity: input.minimumQuantity ?? 1,
+    p_minimum_order_value: input.minimumOrderValue ?? null, p_shop_is_open: input.shopIsOpen ?? null,
+  })
+  assertNoError(error)
+  if (!data) throw new Error('Daily availability could not be saved.')
+  return data as VendorProduct
+}
+
+export async function setVendorFoodProductDetails(input: { productId: string; sellingUnit: string; unitPrice: number; quantityIncrement: number; minimumQuantity: number; isDailyItem: boolean; dailyStatus: 'available' | 'not_today' | 'coming_soon'; dailyAvailableQuantity: number }) {
+  const { error } = await getSupabase().rpc('vendor_update_food_product_details', {
+    p_product_id: input.productId, p_selling_unit: input.sellingUnit, p_unit_price: input.unitPrice,
+    p_quantity_increment: input.quantityIncrement, p_minimum_quantity: input.minimumQuantity,
+    p_is_daily_item: input.isDailyItem, p_daily_status: input.dailyStatus,
+    p_daily_available_quantity: input.dailyAvailableQuantity,
+  })
+  assertNoError(error)
 }
 
 export async function finalizeVendorProductSubmission(productId: string) {
