@@ -32,7 +32,8 @@
 - [x] Added existing-RPC product variant management.
 - [x] Added support ticket inbox, message thread and ticket creation using existing support tables.
 - [x] Added basic shop profile editing through the existing seller profile RLS policy.
-- [ ] Complete product editing, full seller application flow, document management, and all restaurant modules.
+- [x] Added existing-RPC product editing for core customer-facing product fields.
+- [ ] Complete full seller application flow, document management, image gallery/variant image management, and all restaurant modules.
 - [ ] Validate against a dedicated staging account and run end-to-end regression tests.
 - [ ] Obtain owner approval before any production deployment.
 
