@@ -24,19 +24,11 @@ pnpm preview
 | Route | What it covers |
 | --- | --- |
 | `/vendor-login` | Existing customer email + password followed by six-digit email OTP, or Continue with Google for an existing Google-linked customer account |
-| `/marketplace` | Approved-seller-only marketplace workspace: live listings, product gallery, variants, inventory, fulfilment, customer cases, support and shop profile |
-| `/` | Redirects to `/marketplace`; no mock dashboard is shown before seller approval |
-| `/orders` | Order queue — filters, search, order drawer, accepted → preparing → ready lifecycle and COD direction notes |
-| `/kitchen` | Kitchen board — new / accepted / preparing / ready columns with prep timers and handover |
-| `/menu` | Restaurant menu — portion sizes, paid add-ons, modifiers, per-item prep time, availability and margins |
-| `/promotions` | Campaigns and coupons — percentage, fixed, BOGO, multi-buy, bundle and flash-sale flows with item targeting and eligibility |
-| `/customers` | Customer directory — order-related details, lifetime spend, fulfilment preference, latest order and privacy note |
-| `/reviews` | Reputation — rating breakdown, filters and public replies |
-| `/inventory` | Ingredients — par levels, stock status and restock modal |
-| `/earnings` | COD ledger — own-rider/pickup cash with vendor, JTBazar-rider payable, commission due and weekly manual settlements |
-| `/analytics` | Revenue trend, peak hours, fulfilment mix and top items |
-| `/support` | Ticket inbox and conversation thread with new-ticket flow |
-| `/settings` | Business type and modules, shop profile, hours & delivery, Admin-approved drivers, payouts, notifications and team roles |
+| `/auth/callback` | PKCE Google OAuth callback on the Vendor Center origin |
+| `/marketplace` | Approved-seller-only live marketplace workspace |
+| `/` | Redirects to `/marketplace` |
+
+The restaurant-oriented prototype screens remain in the source tree for later integration, but they are not routed into the live Vendor Center. This prevents mock orders, balances or analytics from being shown as real seller data until their backend integrations are complete.
 
 ## Shared JTBazar marketplace integration
 
@@ -49,7 +41,7 @@ The `/marketplace` route is the first live-data integration slice for existing J
 - Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`; see `.env.example`.
 - Never put a service-role key in this frontend.
 
-Seller applications remain on the existing customer website. The Vendor Center does not provide a second registration form. Restaurant-oriented routes are still prototypes and are not production-ready; they must be connected and tested before enabling them for restaurant vendors.
+Seller applications remain on the existing customer website. The Vendor Center does not provide a second registration form. Restaurant-oriented prototype screens are not routed into the live app until their real backend workflows are implemented and tested.
 
 See [website vendor parity plan](docs/WEBSITE_VENDOR_PARITY.md) for the safety boundary and remaining parity work.
 
