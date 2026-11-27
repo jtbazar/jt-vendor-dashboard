@@ -41,15 +41,15 @@ export function EarningsPage() {
   const { pushToast } = useApp()
   const [tab, setTab] = useState<'ledger' | 'settlements'>('ledger')
   const [paymentOpen, setPaymentOpen] = useState(false)
-  const [payment, setPayment] = useState({ method: 'Bank transfer', reference: '', amount: '21430' })
+  const [payment, setPayment] = useState({ method: 'Bank transfer', reference: '', amount: '0' })
 
-  const gross = 540550
-  const commission = 54055
+  const gross = ledger.filter((entry) => entry.type === 'COD collection').reduce((sum, entry) => sum + Number(entry.amount || 0), 0)
+  const commission = ledger.filter((entry) => entry.type === 'Commission').reduce((sum, entry) => sum + Number(entry.amount || 0), 0)
   const net = gross - commission
-  const codWithVendor = 214300
-  const codWithJtb = gross - codWithVendor
-  const commissionDue = 21430
-  const jtbCommission = commission - commissionDue
+  const codWithVendor = settlements.reduce((sum, entry) => sum + Number(entry.codWithVendor || 0), 0)
+  const codWithJtb = Math.max(0, gross - codWithVendor)
+  const commissionDue = ledger.filter((entry) => entry.type === 'Commission' && entry.status === 'Pending').reduce((sum, entry) => sum + Number(entry.amount || 0), 0)
+  const jtbCommission = Math.max(0, commission - commissionDue)
   const jtbPayable = codWithJtb - jtbCommission
   const transfer = net - codWithVendor
   const vendorPays = transfer < 0
@@ -65,7 +65,7 @@ export function EarningsPage() {
       'success',
     )
     setPaymentOpen(false)
-    setPayment({ method: 'Bank transfer', reference: '', amount: '21430' })
+    setPayment({ method: 'Bank transfer', reference: '', amount: String(commissionDue) })
   }
 
   return (
