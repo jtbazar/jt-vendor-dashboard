@@ -68,8 +68,8 @@ export function VendorAuthProvider({ children }: { children: ReactNode }) {
         if (data.session?.user) {
           try { await refreshSeller() } catch { setSeller(null) }
         }
+        if (active) setLoading(false)
       }
-      if (active) setLoading(false)
     })
     return () => {
       active = false
