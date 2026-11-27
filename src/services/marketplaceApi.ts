@@ -657,12 +657,6 @@ export async function updateVendorShopProfile(input: {
 }
 
 
-export async function finalizeVendorProductSubmission(productId: string): Promise<VendorProduct> {
-  const { data, error } = await getSupabase().rpc('vendor_finalize_product_submission', { p_product_id: productId })
-  assertNoError(error)
-  if (!data) throw new Error('The product submission could not be finalized.')
-  return data as VendorProduct
-}
 
 export async function removeVendorShopImage(path: string) {
   if (!path) return
