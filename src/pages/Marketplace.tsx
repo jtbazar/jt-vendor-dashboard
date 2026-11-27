@@ -140,26 +140,37 @@ export function MarketplacePage() {
     if (!productImage) { setError('Add at least one clear product image.'); return }
     const cleanName = productName.trim()
     if (cleanName.length < 2) { setError('Enter a product name.'); return }
+    const data = new FormData(event.currentTarget)
+    const readNumber = (key: string, fallback = 0) => {
+      const raw = String(data.get(key) ?? '').trim()
+      return raw ? Number(raw) : fallback
+    }
+    let specifications: unknown = []
+    let dimensions: unknown = {}
+    try {
+      specifications = JSON.parse(String(data.get('specifications') || '[]'))
+      dimensions = JSON.parse(String(data.get('dimensions') || '{}'))
+    } catch { setError('Specifications must be a valid JSON array and dimensions a valid JSON object.'); return }
     const slug = cleanName.toLowerCase().normalize('NFKD').replace(/[\\u0300-\\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
     const succeeded = await runAction(async () => {
       const productId = await createVendorProduct({
         category_id: productCategory || null,
         name: cleanName,
         slug: `${slug}-${Date.now().toString(36)}`,
-        sku: null,
-        short_description: productDescription.trim().slice(0, 300),
-        description: productDescription.trim(),
+        sku: String(data.get('sku') ?? '').trim() || null,
+        short_description: String(data.get('short_description') ?? productDescription).trim().slice(0, 300),
+        description: String(data.get('description') ?? productDescription).trim(),
         price: Number(productPrice),
-        supplier_cost: null,
-        fulfillment_expense: 0,
-        minimum_profit: 0,
-        track_inventory: true,
-        discount_percent: 0,
-        weight_grams: null,
-        specifications: [],
-        dimensions: {},
-        seo_title: null,
-        seo_description: null,
+        supplier_cost: data.get('supplier_cost') ? readNumber('supplier_cost') : null,
+        fulfillment_expense: readNumber('fulfillment_expense'),
+        minimum_profit: readNumber('minimum_profit'),
+        track_inventory: data.get('track_inventory') !== 'off',
+        discount_percent: readNumber('discount_percent'),
+        weight_grams: data.get('weight_grams') ? readNumber('weight_grams') : null,
+        specifications,
+        dimensions,
+        seo_title: String(data.get('seo_title') ?? '').trim() || null,
+        seo_description: String(data.get('seo_description') ?? '').trim() || null,
         initial_stock: Number(productStock),
       })
       await uploadVendorProductImage(productId, productImage, cleanName)
@@ -330,8 +341,20 @@ export function MarketplacePage() {
         <label className="text-xs font-semibold">Product name<input required minLength={2} value={productName} onChange={e=>setProductName(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label>
         <label className="text-xs font-semibold">Category<select required value={productCategory} onChange={e=>setProductCategory(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-line bg-white px-3"><option value="">Select category</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
         <label className="text-xs font-semibold">Your base price (PKR)<input required type="number" min="1" step="0.01" value={productPrice} onChange={e=>setProductPrice(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label>
-        <label className="text-xs font-semibold">Initial stock<input required type="number" min="0" step="1" value={productStock} onChange={e=>setProductStock(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label>
-        <label className="text-xs font-semibold sm:col-span-2">Description<textarea required minLength={10} value={productDescription} onChange={e=>setProductDescription(e.target.value)} className="mt-1 min-h-20 w-full rounded-lg border border-line p-3"/></label>
+        <label className="text-xs font-semibold">Initial stock<input required type="number" name="initial_stock" min="0" step="1" value={productStock} onChange={e=>setProductStock(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label>
+        <label className="text-xs font-semibold">SKU / product code<input name="sku" className="mt-1 h-10 w-full rounded-lg border border-line px-3" placeholder="Optional product code"/></label>
+        <label className="text-xs font-semibold">Discount (%)<input name="discount_percent" type="number" min="0" max="100" step="0.01" defaultValue="0" className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label>
+        <label className="text-xs font-semibold">Supplier cost (PKR)<input name="supplier_cost" type="number" min="0" step="0.01" className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label>
+        <label className="text-xs font-semibold">Fulfilment expense (PKR)<input name="fulfillment_expense" type="number" min="0" step="0.01" defaultValue="0" className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label>
+        <label className="text-xs font-semibold">Minimum profit (PKR)<input name="minimum_profit" type="number" min="0" step="0.01" defaultValue="0" className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label>
+        <label className="text-xs font-semibold">Shipping weight (grams)<input name="weight_grams" type="number" min="0" step="1" className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label>
+        <label className="text-xs font-semibold">Track inventory<select name="track_inventory" defaultValue="on" className="mt-1 h-10 w-full rounded-lg border border-line bg-white px-3"><option value="on">Yes</option><option value="off">No</option></select></label>
+        <label className="text-xs font-semibold sm:col-span-2">Short description<input name="short_description" maxLength={300} value={productDescription} onChange={e=>setProductDescription(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label>
+        <label className="text-xs font-semibold sm:col-span-2">Full description<textarea required minLength={10} name="description" value={productDescription} onChange={e=>setProductDescription(e.target.value)} className="mt-1 min-h-20 w-full rounded-lg border border-line p-3"/></label>
+        <label className="text-xs font-semibold sm:col-span-2">Specifications (JSON array)<textarea name="specifications" defaultValue="[]" className="mt-1 min-h-16 w-full rounded-lg border border-line p-3 font-mono text-xs"/></label>
+        <label className="text-xs font-semibold sm:col-span-2">Dimensions (JSON object)<textarea name="dimensions" defaultValue="{}" className="mt-1 min-h-16 w-full rounded-lg border border-line p-3 font-mono text-xs"/></label>
+        <label className="text-xs font-semibold">SEO title<input name="seo_title" maxLength={70} className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label>
+        <label className="text-xs font-semibold">SEO description<input name="seo_description" maxLength={170} className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label>
         <label className="text-xs font-semibold sm:col-span-2">Main product image (JPG, PNG, WebP or AVIF; max 10 MB)<input required type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={e=>setProductImage(e.target.files?.[0]??null)} className="mt-1 block w-full text-xs"/></label>
         <p className="text-xs leading-5 text-muted sm:col-span-2">The listing is created through the existing vendor RPC, image is saved to the existing product-images bucket, and the submission is sent for Admin review. No schema or migration changes are made.</p>
         <div className="flex gap-2 sm:col-span-2"><button disabled={busy} className="rounded-lg bg-forest px-4 py-2 text-sm font-semibold text-white">Create and submit</button><button type="button" onClick={()=>setShowProductForm(false)} className="rounded-lg border border-line px-4 py-2 text-sm">Cancel</button></div>
