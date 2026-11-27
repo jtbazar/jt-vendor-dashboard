@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppProvider } from './store'
 import { VendorAuthProvider, useVendorAuth } from './context/VendorAuthContext'
 import { VendorLoginPage } from './pages/VendorLogin'
