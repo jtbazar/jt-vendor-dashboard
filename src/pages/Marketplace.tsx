@@ -70,6 +70,8 @@ export function MarketplacePage() {
   const [foodDailyStatus, setFoodDailyStatus] = useState<'available'|'not_today'|'coming_soon'>('available')
   const [foodDailyAvailableQuantity, setFoodDailyAvailableQuantity] = useState('0')
   const [productImagesFiles, setProductImagesFiles] = useState<File[]>([])
+  const [createdProductId, setCreatedProductId] = useState<string | null>(null)
+  const [uploadedProductImageCount, setUploadedProductImageCount] = useState(0)
   const [editingProduct, setEditingProduct] = useState<VendorProduct | null>(null)
   const [editName, setEditName] = useState('')
   const [editPrice, setEditPrice] = useState('')
@@ -231,7 +233,9 @@ export function MarketplacePage() {
     } catch { setError('Specifications must be a valid JSON array and dimensions a valid JSON object.'); return }
     const slug = cleanName.toLowerCase().normalize('NFKD').replace(/[\\u0300-\\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
     const succeeded = await runAction(async () => {
-      const productId = await createVendorProduct({
+      let productId = createdProductId
+      if (!productId) {
+        productId = await createVendorProduct({
         category_id: productCategory || null,
         name: cleanName,
         slug: `${slug}-${Date.now().toString(36)}`,
@@ -250,12 +254,17 @@ export function MarketplacePage() {
         seo_title: String(data.get('seo_title') ?? '').trim() || null,
         seo_description: String(data.get('seo_description') ?? '').trim() || null,
         initial_stock: Number(productStock),
-      })
-      for (const imageFile of productImagesFiles) await uploadVendorProductImage(productId, imageFile, cleanName)
+        })
+        setCreatedProductId(productId)
+      }
+      for (let imageIndex = uploadedProductImageCount; imageIndex < productImagesFiles.length; imageIndex += 1) {
+        await uploadVendorProductImage(productId, productImagesFiles[imageIndex], cleanName)
+        setUploadedProductImageCount(imageIndex + 1)
+      }
       if (selectedCategoryIsFood) await setVendorFoodProductDetails({ productId, sellingUnit: foodSellingUnit, unitPrice: Number(productPrice), quantityIncrement: Number(foodQuantityIncrement), minimumQuantity: Number(foodMinimumQuantity), isDailyItem: isDailyFoodItem, dailyStatus: foodDailyStatus, dailyAvailableQuantity: Number(foodDailyAvailableQuantity) })
       await finalizeVendorProductSubmission(productId)
     }, 'Product submitted for JTBazar review.')
-    if (succeeded) { setShowProductForm(false); setProductName(''); setProductCategory(''); setProductPrice(''); setProductDescription(''); setProductStock('0'); setProductImagesFiles([]); setFoodSellingUnit('piece'); setFoodQuantityIncrement('1'); setFoodMinimumQuantity('1'); setIsDailyFoodItem(false); setFoodDailyStatus('available'); setFoodDailyAvailableQuantity('0') }
+    if (succeeded) { setShowProductForm(false); setProductName(''); setProductCategory(''); setProductPrice(''); setProductDescription(''); setProductStock('0'); setProductImagesFiles([]); setCreatedProductId(null); setUploadedProductImageCount(0); setFoodSellingUnit('piece'); setFoodQuantityIncrement('1'); setFoodMinimumQuantity('1'); setIsDailyFoodItem(false); setFoodDailyStatus('available'); setFoodDailyAvailableQuantity('0') }
   }
 
   function startProductEdit(product: VendorProduct) {
@@ -466,7 +475,7 @@ export function MarketplacePage() {
         <label className="text-xs font-semibold sm:col-span-2">Dimensions (JSON object)<textarea name="dimensions" defaultValue="{}" className="mt-1 min-h-16 w-full rounded-lg border border-line p-3 font-mono text-xs"/></label>
         <label className="text-xs font-semibold">SEO title<input name="seo_title" maxLength={70} className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label>
         <label className="text-xs font-semibold">SEO description<input name="seo_description" maxLength={170} className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label>
-        <label className="text-xs font-semibold sm:col-span-2">Product images (JPG, PNG, WebP or AVIF; max 10 MB each; up to 8)<input required type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif" onChange={e=>{const files=Array.from(e.target.files??[]);const valid=files.filter(file=>file.size<=10*1024*1024&&['image/jpeg','image/png','image/webp','image/avif'].includes(file.type));if(valid.length!==files.length)setError('Only JPG, PNG, WebP or AVIF images up to 10 MB each are allowed.');if(valid.length>8)setError('You can upload up to 8 images.');setProductImagesFiles(valid.slice(0,8));e.target.value='';}} className="mt-1 block w-full text-xs"/></label>
+        <label className="text-xs font-semibold sm:col-span-2">Product images (JPG, PNG, WebP or AVIF; max 10 MB each; up to 8)<input required type="file" multiple disabled={Boolean(createdProductId)} accept="image/jpeg,image/png,image/webp,image/avif" onChange={e=>{const files=Array.from(e.target.files??[]);const valid=files.filter(file=>file.size<=10*1024*1024&&['image/jpeg','image/png','image/webp','image/avif'].includes(file.type));if(valid.length!==files.length)setError('Only JPG, PNG, WebP or AVIF images up to 10 MB each are allowed.');if(valid.length>8)setError('You can upload up to 8 images.');setProductImagesFiles(valid.slice(0,8));e.target.value='';}} className="mt-1 block w-full text-xs"/>{createdProductId&&<small className="text-amber-700">A draft listing has already been created. Retry the same image upload to finish it without creating a duplicate.</small>}</label>
         <p className="text-xs leading-5 text-muted sm:col-span-2">The listing is created through the existing vendor RPC, images are compressed and saved to the existing product-images bucket, and the submission is sent for Admin review. No schema or migration changes are made.</p>
         <div className="flex gap-2 sm:col-span-2"><button disabled={busy} className="rounded-lg bg-forest px-4 py-2 text-sm font-semibold text-white">Create and submit</button><button type="button" onClick={()=>setShowProductForm(false)} className="rounded-lg border border-line px-4 py-2 text-sm">Cancel</button></div>
       </form>}<div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="text-xs text-muted"><tr><th className="py-2">Product</th><th>Price</th><th>Review</th><th>Visibility</th><th>Action</th></tr></thead><tbody>{products.map(p=><tr key={p.id} className="border-t border-line"><td className="py-3"><strong>{p.name}</strong><small className="block text-muted">{p.sku||p.slug}</small></td><td>{money(p.price)}</td><td><Status value={p.moderation_status}/></td><td><Status value={p.vendor_hidden?'hidden':'visible'}/></td><td><div className="flex flex-wrap gap-2"><button disabled={busy} onClick={()=>void runAction(()=>setProductVisibility(p.id,!p.vendor_hidden),p.vendor_hidden?'Product shown.':'Product hidden.')} className="inline-flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-semibold">{p.vendor_hidden?<Eye size={13}/>:<EyeOff size={13}/>} {p.vendor_hidden?'Show':'Hide'}</button><button disabled={busy} onClick={()=>startProductEdit(p)} className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold">Edit</button><button disabled={busy} onClick={()=>void openVariants(p)} className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold">Variants</button><button disabled={busy} onClick={()=>void openImageGallery(p)} className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold">Images</button><button disabled={busy || deletionRequests.some(r=>r.product_id===p.id&&r.status==="pending")} onClick={()=>{setDeletionTarget(p);setDeletionReason("");}} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700">Request removal</button></div></td></tr>)}</tbody></table></div>
