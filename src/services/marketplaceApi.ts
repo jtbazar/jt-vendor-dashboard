@@ -61,12 +61,18 @@ export async function startVendorGoogleSignIn(email: string) {
       ? 'This JTBazar account uses email and password. Please use the email + OTP sign-in instead.'
       : 'No existing JTBazar Google account was found for this email. Apply as a customer on JTBazar first.')
   }
-  const callback = new URL('/auth/callback?provider=google&next=%2Fmarketplace&expected_email=' + encodeURIComponent(normalizedEmail), window.location.origin).toString()
+  const expectedEmailKey = 'jtbazar_vendor_google_expected_email'
+  try { window.sessionStorage.setItem(expectedEmailKey, normalizedEmail) }
+  catch { throw new Error('Secure Google sign-in requires browser session storage. Enable it and try again.') }
+  const callback = new URL('/auth/callback', window.location.origin).toString()
   const { error } = await getSupabase().auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: callback, queryParams: { login_hint: normalizedEmail, prompt: 'select_account' } },
   })
-  assertNoError(error)
+  if (error) {
+    window.sessionStorage.removeItem(expectedEmailKey)
+    assertNoError(error)
+  }
 }
 
 export async function completeVendorGoogleSignIn(code: string, expectedEmail: string) {
