@@ -8,20 +8,8 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import {
-  coupons as seedCoupons,
-  deals as seedDeals,
-  menu as seedMenu,
-  notifications as seedNotifications,
-  orders as seedOrders,
-  reviews as seedReviews,
-  type Coupon,
-  type Deal,
-  type MenuItem,
-  type Notification,
-  type Order,
-  type OrderStatus,
-  type Review,
+import type {
+  Coupon, Deal, MenuItem, Notification, Order, OrderStatus, Review,
 } from './data/mock'
 
 export type ToastTone = 'success' | 'info' | 'warning' | 'error'
@@ -67,13 +55,13 @@ function makeId(prefix: string) {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [storeOnline, setStoreOnline] = useState(true)
-  const [orders, setOrders] = useState<Order[]>(seedOrders)
-  const [menu, setMenu] = useState<MenuItem[]>(seedMenu)
-  const [deals, setDeals] = useState<Deal[]>(seedDeals)
-  const [coupons, setCoupons] = useState<Coupon[]>(seedCoupons)
-  const [reviews, setReviews] = useState<Review[]>(seedReviews)
-  const [notifications, setNotifications] = useState<Notification[]>(seedNotifications)
+  const [storeOnline, setStoreOnline] = useState(false)
+  const [orders, setOrders] = useState<Order[]>([])
+  const [menu, setMenu] = useState<MenuItem[]>([])
+  const [deals, setDeals] = useState<Deal[]>([])
+  const [coupons, setCoupons] = useState<Coupon[]>([])
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [notifications, setNotifications] = useState<Notification[]>([])
   const [toasts, setToasts] = useState<Toast[]>([])
   const timers = useRef<Map<string, number>>(new Map())
 
