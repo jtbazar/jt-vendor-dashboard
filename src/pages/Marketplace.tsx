@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { Activity, AlertCircle, ArrowDownToLine, ArrowUpRight, Boxes, CheckCircle2, ClipboardList, Eye, EyeOff, Package, RefreshCw, ShieldCheck, Store, Truck, Wallet } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useVendorAuth } from '../context/VendorAuthContext'
-import { getVendorDashboardData, markOrderReady, replyToCase, setProductStock, setProductVisibility, type VendorCase, type VendorInventory, type VendorOrderItem, type VendorProduct } from '../services/marketplaceApi'
+import { createVendorProduct, finalizeVendorProductSubmission, getVendorDashboardData, listVendorCategories, markOrderReady, replyToCase, setProductStock, setProductVisibility, uploadVendorProductImage, type VendorCase, type VendorInventory, type VendorOrderItem, type VendorProduct } from '../services/marketplaceApi'
 
 type Tab = 'overview' | 'listings' | 'inventory' | 'orders' | 'cases' | 'settings'
 const tabs: Array<{ id: Tab; label: string; icon: typeof Activity }> = [
@@ -44,6 +44,14 @@ export function MarketplacePage() {
   const [stockNote, setStockNote] = useState('')
   const [caseTarget, setCaseTarget] = useState<VendorCase | null>(null)
   const [caseReply, setCaseReply] = useState('')
+  const [categories, setCategories] = useState<Array<{id:string;name:string;parent_id:string|null}>>([])
+  const [showProductForm, setShowProductForm] = useState(false)
+  const [productName, setProductName] = useState('')
+  const [productCategory, setProductCategory] = useState('')
+  const [productPrice, setProductPrice] = useState('')
+  const [productDescription, setProductDescription] = useState('')
+  const [productStock, setProductStock] = useState('0')
+  const [productImage, setProductImage] = useState<File | null>(null)
 
   const load = useCallback(async () => {
     if (!user) return
@@ -51,6 +59,8 @@ export function MarketplacePage() {
     try {
       const data = await getVendorDashboardData()
       setProducts(data.products); setInventory(data.inventory); setOrders(data.orders); setCases(data.cases)
+      const categoryRows = await listVendorCategories()
+      setCategories(categoryRows)
       await refreshSeller()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Vendor data could not be loaded.')
@@ -84,6 +94,39 @@ export function MarketplacePage() {
     await runAction(() => setProductStock(stockTarget.product_id, Number(stockValue), stockNote, stockTarget.variant_id), 'Inventory updated.')
     setStockTarget(null)
   }
+  async function submitNewProduct(event: FormEvent) {
+    event.preventDefault()
+    if (!productImage) { setError('Add at least one clear product image.'); return }
+    const cleanName = productName.trim()
+    if (cleanName.length < 2) { setError('Enter a product name.'); return }
+    const slug = cleanName.toLowerCase().normalize('NFKD').replace(/[\\u0300-\\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    await runAction(async () => {
+      const productId = await createVendorProduct({
+        category_id: productCategory || null,
+        name: cleanName,
+        slug: `${slug}-${Date.now().toString(36)}`,
+        sku: null,
+        short_description: productDescription.trim().slice(0, 300),
+        description: productDescription.trim(),
+        price: Number(productPrice),
+        supplier_cost: null,
+        fulfillment_expense: 0,
+        minimum_profit: 0,
+        track_inventory: true,
+        discount_percent: 0,
+        weight_grams: null,
+        specifications: [],
+        dimensions: {},
+        seo_title: null,
+        seo_description: null,
+        initial_stock: Number(productStock),
+      })
+      await uploadVendorProductImage(productId, productImage, cleanName)
+      await finalizeVendorProductSubmission(productId)
+    }, 'Product submitted for JTBazar review.')
+    setShowProductForm(false); setProductName(''); setProductCategory(''); setProductPrice(''); setProductDescription(''); setProductStock('0'); setProductImage(null)
+  }
+
   async function submitCase(event: FormEvent) {
     event.preventDefault()
     if (!caseTarget) return
@@ -110,7 +153,17 @@ export function MarketplacePage() {
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{stats.map(({label,value,icon:Icon})=><article key={label} className="rounded-2xl border border-line bg-white p-5"><div className="flex items-center justify-between text-muted"><span className="text-xs font-semibold uppercase tracking-wide">{label}</span><Icon size={18}/></div><p className="mt-3 font-display text-3xl font-semibold text-forest">{value}</p></article>)}</section>
       <section className="mt-5 grid gap-4 xl:grid-cols-2"><article className="rounded-2xl border border-line bg-white p-5"><h2 className="font-display text-lg font-semibold">Recent orders</h2>{orders.slice(0,5).map(row=><div key={row.id} className="flex items-center justify-between gap-3 border-b border-line py-3 text-sm"><div><strong>Order #{String(row.order_number ?? row.order_id).slice(-8)}</strong><p className="text-xs text-muted">{row.product_name} · Qty {row.quantity}</p></div><Status value={row.vendor_fulfillment_status}/></div>)}{!orders.length&&<p className="py-5 text-sm text-muted">No vendor orders yet.</p>}</article><article className="rounded-2xl border border-line bg-white p-5"><h2 className="font-display text-lg font-semibold">Stock requiring attention</h2>{lowStock.slice(0,6).map(row=><div key={row.id} className="flex items-center justify-between border-b border-line py-3 text-sm"><span>{row.product_name}{row.variant_name&&<small className="block text-muted">{row.variant_name}</small>}</span><strong>{row.quantity} left</strong></div>)}{!lowStock.length&&<p className="py-5 text-sm text-muted">No low-stock alerts.</p>}</article></section>
     </>}
-    {tab==='listings' && <section className="rounded-2xl border border-line bg-white p-5"><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-display text-lg font-semibold">Your product listings</h2><p className="text-xs text-muted">Products are loaded through the existing vendor_list_products RPC.</p></div><span className="text-xs text-muted">{products.length} products</span></div><div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="text-xs text-muted"><tr><th className="py-2">Product</th><th>Price</th><th>Review</th><th>Visibility</th><th>Action</th></tr></thead><tbody>{products.map(p=><tr key={p.id} className="border-t border-line"><td className="py-3"><strong>{p.name}</strong><small className="block text-muted">{p.sku||p.slug}</small></td><td>{money(p.price)}</td><td><Status value={p.moderation_status}/></td><td><Status value={p.vendor_hidden?'hidden':'visible'}/></td><td><button disabled={busy} onClick={()=>void runAction(()=>setProductVisibility(p.id,!p.vendor_hidden),p.vendor_hidden?'Product shown.':'Product hidden.')} className="inline-flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-semibold">{p.vendor_hidden?<Eye size={13}/>:<EyeOff size={13}/>} {p.vendor_hidden?'Show':'Hide'}</button></td></tr>)}</tbody></table></div></section>}
+    {tab==='listings' && <section className="rounded-2xl border border-line bg-white p-5"><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-display text-lg font-semibold">Your product listings</h2><p className="text-xs text-muted">Products are loaded through the existing vendor_list_products RPC.</p></div><div className="flex items-center gap-3"><span className="text-xs text-muted">{products.length} products</span><button onClick={()=>setShowProductForm(v=>!v)} className="rounded-xl bg-forest px-4 py-2 text-xs font-semibold text-white">{showProductForm?'Close':'Add product'}</button></div></div>
+      {showProductForm&&<form onSubmit={submitNewProduct} className="mb-5 grid gap-3 rounded-2xl bg-cream-50 p-4 sm:grid-cols-2">
+        <label className="text-xs font-semibold">Product name<input required minLength={2} value={productName} onChange={e=>setProductName(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label>
+        <label className="text-xs font-semibold">Category<select required value={productCategory} onChange={e=>setProductCategory(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-line bg-white px-3"><option value="">Select category</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+        <label className="text-xs font-semibold">Your base price (PKR)<input required type="number" min="1" step="0.01" value={productPrice} onChange={e=>setProductPrice(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label>
+        <label className="text-xs font-semibold">Initial stock<input required type="number" min="0" step="1" value={productStock} onChange={e=>setProductStock(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label>
+        <label className="text-xs font-semibold sm:col-span-2">Description<textarea required minLength={10} value={productDescription} onChange={e=>setProductDescription(e.target.value)} className="mt-1 min-h-20 w-full rounded-lg border border-line p-3"/></label>
+        <label className="text-xs font-semibold sm:col-span-2">Main product image (JPG, PNG, WebP or AVIF; max 10 MB)<input required type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={e=>setProductImage(e.target.files?.[0]??null)} className="mt-1 block w-full text-xs"/></label>
+        <p className="text-xs leading-5 text-muted sm:col-span-2">The listing is created through the existing vendor RPC, image is saved to the existing product-images bucket, and the submission is sent for Admin review. No schema or migration changes are made.</p>
+        <div className="flex gap-2 sm:col-span-2"><button disabled={busy} className="rounded-lg bg-forest px-4 py-2 text-sm font-semibold text-white">Create and submit</button><button type="button" onClick={()=>setShowProductForm(false)} className="rounded-lg border border-line px-4 py-2 text-sm">Cancel</button></div>
+      </form>}<div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="text-xs text-muted"><tr><th className="py-2">Product</th><th>Price</th><th>Review</th><th>Visibility</th><th>Action</th></tr></thead><tbody>{products.map(p=><tr key={p.id} className="border-t border-line"><td className="py-3"><strong>{p.name}</strong><small className="block text-muted">{p.sku||p.slug}</small></td><td>{money(p.price)}</td><td><Status value={p.moderation_status}/></td><td><Status value={p.vendor_hidden?'hidden':'visible'}/></td><td><button disabled={busy} onClick={()=>void runAction(()=>setProductVisibility(p.id,!p.vendor_hidden),p.vendor_hidden?'Product shown.':'Product hidden.')} className="inline-flex items-center gap-1 rounded-lg border border-line px-3 py-1.5 text-xs font-semibold">{p.vendor_hidden?<Eye size={13}/>:<EyeOff size={13}/>} {p.vendor_hidden?'Show':'Hide'}</button></td></tr>)}</tbody></table></div></section>}
     {tab==='inventory' && <section className="rounded-2xl border border-line bg-white p-5"><h2 className="font-display text-lg font-semibold">Inventory & stock</h2><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[680px] text-left text-sm"><thead className="text-xs text-muted"><tr><th className="py-2">Product</th><th>Variant</th><th>Quantity</th><th>Updated</th><th>Action</th></tr></thead><tbody>{inventory.map(row=><tr key={row.id} className="border-t border-line"><td className="py-3 font-medium">{row.product_name}</td><td>{row.variant_name||'—'}</td><td><strong>{row.quantity}</strong></td><td>{date(row.updated_at)}</td><td><button onClick={()=>{setStockTarget(row);setStockValue(String(row.quantity));setStockNote('')}} className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold">Adjust stock</button></td></tr>)}</tbody></table></div>{stockTarget&&<form onSubmit={submitStock} className="mt-5 grid gap-3 rounded-xl bg-cream-50 p-4 sm:grid-cols-3"><label className="text-xs font-semibold">New quantity<input type="number" min="0" step="1" required value={stockValue} onChange={e=>setStockValue(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-line px-3"/></label><label className="text-xs font-semibold">Reason / note<input value={stockNote} onChange={e=>setStockNote(e.target.value)} className="mt-1 h-10 w-full rounded-lg border border-line px-3" placeholder="Stock count correction"/></label><div className="flex items-end gap-2"><button disabled={busy} className="h-10 rounded-lg bg-forest px-4 text-sm font-semibold text-white">Save stock</button><button type="button" onClick={()=>setStockTarget(null)} className="h-10 rounded-lg border border-line px-4 text-sm">Cancel</button></div></form>}</section>}
     {tab==='orders' && <section className="rounded-2xl border border-line bg-white p-5"><h2 className="font-display text-lg font-semibold">Order fulfilment</h2><div className="mt-4 overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead className="text-xs text-muted"><tr><th className="py-2">Order</th><th>Product</th><th>Qty</th><th>Vendor status</th><th>Pickup</th><th>Action</th></tr></thead><tbody>{orders.map(row=><tr key={row.id} className="border-t border-line"><td className="py-3">#{String(row.order_number??row.order_id).slice(-8)}<small className="block text-muted">{date(row.created_at)}</small></td><td>{row.product_name}</td><td>{row.quantity}</td><td><Status value={row.vendor_fulfillment_status}/></td><td><Status value={row.pickup_status||'not_applicable'}/></td><td>{!['ready_for_pickup','picked_up','delivered','cancelled'].includes(String(row.vendor_fulfillment_status))?<button disabled={busy} onClick={()=>void runAction(()=>markOrderReady(row.order_id), 'Order marked ready for pickup.')} className="rounded-lg bg-forest px-3 py-1.5 text-xs font-semibold text-white">Mark ready</button>:<span className="text-xs text-muted">No action</span>}</td></tr>)}</tbody></table></div>{!orders.length&&<p className="py-5 text-sm text-muted">No vendor order items yet.</p>}</section>}
     {tab==='cases' && <section className="rounded-2xl border border-line bg-white p-5"><h2 className="font-display text-lg font-semibold">Customer cases</h2><div className="mt-4 space-y-3">{cases.map(c=><article key={c.id} className="rounded-xl border border-line p-4"><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm">{c.case_type?.replace(/_/g,' ')||'Customer case'}</strong><Status value={c.status}/></div><p className="mt-2 text-sm text-muted">{c.reason}</p>{c.seller_response&&<p className="mt-2 rounded-lg bg-cream-50 p-3 text-sm">Your response: {c.seller_response}</p>}<button onClick={()=>{setCaseTarget(c);setCaseReply(c.seller_response||'')}} className="mt-3 rounded-lg border border-line px-3 py-2 text-xs font-semibold">Respond to case</button></article>)}{!cases.length&&<p className="py-5 text-sm text-muted">No customer cases.</p>}</div>{caseTarget&&<form onSubmit={submitCase} className="mt-4 rounded-xl bg-cream-50 p-4"><label className="text-xs font-semibold">Your response<textarea required minLength={3} value={caseReply} onChange={e=>setCaseReply(e.target.value)} className="mt-1 min-h-24 w-full rounded-lg border border-line p-3"/></label><div className="mt-3 flex gap-2"><button disabled={busy} className="rounded-lg bg-forest px-4 py-2 text-sm font-semibold text-white">Send response</button><button type="button" onClick={()=>setCaseTarget(null)} className="rounded-lg border border-line px-4 py-2 text-sm">Cancel</button></div></form>}</section>}
