@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Building2, LoaderCircle, Save, ShieldCheck, Store } from 'lucide-react'
-import { Button, Card, PageHeader } from '../components/ui'
+import { Badge, Button, Card, PageHeader } from '../components/ui'
 import { useVendorAuth } from '../context/VendorAuthContext'
 import { updateVendorShopProfile } from '../services/marketplaceApi'
 
