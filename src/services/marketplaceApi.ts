@@ -548,14 +548,81 @@ export async function sendVendorSupportMessage(ticketId: string, message: string
   return data
 }
 
-export async function updateVendorShopProfile(input: { shop_name: string; description: string; phone: string; current_address: string; complete_address: string }) {
+export async function getVendorDocumentSignedUrls(profile: SellerProfile) {
+  const client = getSupabase()
+  const entries = await Promise.all([
+    ['cnicFront', profile.cnic_front_path], ['cnicBack', profile.cnic_back_path], ['verification', profile.document_path],
+  ].map(async ([key, path]) => {
+    if (!path || typeof path !== 'string') return [key, null] as const
+    const { data, error } = await client.storage.from('vendor-documents').createSignedUrl(path, 300)
+    return [key, error ? null : data.signedUrl] as const
+  }))
+  return Object.fromEntries(entries) as { cnicFront: string | null; cnicBack: string | null; verification: string | null }
+}
+
+export async function uploadVendorShopImage(file: File) {
+  if (file.size > 5 * 1024 * 1024) throw new Error('Shop images must be 5 MB or smaller.')
+  if (!['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(file.type)) throw new Error('Choose a JPG, PNG, WebP or AVIF shop image.')
+  const client = getSupabase()
+  const { data: { user }, error } = await client.auth.getUser()
+  assertNoError(error)
+  if (!user) throw new Error('Sign in before uploading a shop image.')
+  const path = `${user.id}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '-')}`
+  const { error: uploadError } = await client.storage.from('shop-images').upload(path, file, { upsert: false, contentType: file.type })
+  assertNoError(uploadError)
+  return { path, url: client.storage.from('shop-images').getPublicUrl(path).data.publicUrl }
+}
+
+export async function uploadVendorDocument(file: File) {
+  if (file.size > 10 * 1024 * 1024) throw new Error('Business information PDFs must be 10 MB or smaller.')
+  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) throw new Error('Upload a PDF document.')
+  const client = getSupabase()
+  const { data: { user }, error } = await client.auth.getUser()
+  assertNoError(error)
+  if (!user) throw new Error('Sign in before uploading verification documents.')
+  const path = `${user.id}/${Date.now()}-${crypto.randomUUID()}.pdf`
+  const { error: uploadError } = await client.storage.from('vendor-documents').upload(path, file, { cacheControl: '3600', upsert: false, contentType: 'application/pdf' })
+  assertNoError(uploadError)
+  return path
+}
+
+export async function uploadVendorCnicImage(file: File, side: 'cnic-front' | 'cnic-back') {
+  if (file.size > 10 * 1024 * 1024) throw new Error('CNIC images must be 10 MB or smaller.')
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('CNIC images must be JPG, PNG or WebP.')
+  const client = getSupabase()
+  const { data: { user }, error } = await client.auth.getUser()
+  assertNoError(error)
+  if (!user) throw new Error('Sign in before uploading CNIC images.')
+  const ext = file.type === 'image/jpeg' ? 'jpg' : file.type.split('/')[1]
+  const path = `${user.id}/${side}-${Date.now()}-${crypto.randomUUID()}.${ext}`
+  const { error: uploadError } = await client.storage.from('vendor-documents').upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type })
+  assertNoError(uploadError)
+  return path
+}
+
+export async function updateVendorShopProfile(input: {
+  shop_name: string; slug?: string; description: string; phone: string;
+  current_address: string; complete_address: string; shop_lat?: number | null;
+  shop_lng?: number | null; shop_location_label?: string; show_shop_on_map?: boolean;
+  shop_hours?: Record<string, { open: boolean; start: string; end: string }>;
+  shop_is_open?: boolean; shop_image_url?: string | null;
+}) {
   const client = getSupabase()
   const { data: { user }, error: authError } = await client.auth.getUser()
   assertNoError(authError)
   if (!user || !user.email_confirmed_at) throw new Error('Verify your JTBazar account email before updating seller details.')
   const { data, error } = await client.from('seller_profiles').update({
     shop_name: input.shop_name.trim(),
+    ...(input.slug !== undefined ? { slug: input.slug.trim() } : {}),
     description: input.description.trim(),
+    contact_email: user.email?.trim().toLowerCase(),
+    ...(input.shop_lat !== undefined ? { shop_lat: input.shop_lat } : {}),
+    ...(input.shop_lng !== undefined ? { shop_lng: input.shop_lng } : {}),
+    ...(input.shop_location_label !== undefined ? { shop_location_label: input.shop_location_label.trim() } : {}),
+    ...(input.show_shop_on_map !== undefined ? { show_shop_on_map: input.show_shop_on_map } : {}),
+    ...(input.shop_hours !== undefined ? { shop_hours: input.shop_hours } : {}),
+    ...(input.shop_is_open !== undefined ? { shop_is_open: input.shop_is_open } : {}),
+    ...(input.shop_image_url !== undefined ? { shop_image_url: input.shop_image_url } : {}),
     phone: input.phone.trim(),
     current_address: input.current_address.trim(),
     complete_address: input.complete_address.trim(),
