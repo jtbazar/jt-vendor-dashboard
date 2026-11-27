@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
 import { BookOpen, CheckCircle2, ClipboardList, Image, Package, PackageCheck, MessageCircle, ShoppingBag, Store, Truck, Wallet } from 'lucide-react'
 import { Card, PageHeader } from '../components/ui'
+import { useVendorLanguage, type VendorLanguage } from '../context/VendorLanguageContext'
 
-type Language = 'en' | 'ur' | 'roman'
+type Language = VendorLanguage
 
 const guideCopy = {
   en: {
@@ -77,14 +77,7 @@ const guideCopy = {
 } as const
 
 export function GuidePage() {
-  const [language, setLanguage] = useState<Language>(() => {
-    try {
-      const saved = window.localStorage.getItem('jtbazar-vendor-guide-language')
-      return saved === 'ur' || saved === 'roman' || saved === 'en' ? saved : 'en'
-    } catch {
-      return 'en'
-    }
-  })
+  const { language, setLanguage } = useVendorLanguage()
   const copy = guideCopy[language]
   const isUrdu = language === 'ur'
 

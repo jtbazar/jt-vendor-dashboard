@@ -7,6 +7,7 @@ import {
   ChevronRight,
   ExternalLink,
   LifeBuoy,
+  Languages,
   LoaderCircle,
   LogOut,
   Menu,
@@ -22,6 +23,7 @@ import { useApp } from '../../store'
 import { cx } from '../../utils'
 import { IconButton } from '../ui'
 import { useVendorAuth } from '../../context/VendorAuthContext'
+import { useVendorLanguage } from '../../context/VendorLanguageContext'
 import { listVendorNotifications, markVendorNotificationsRead, type VendorNotification } from '../../services/marketplaceApi'
 
 const notificationIcons: Record<string, LucideIcon> = {
@@ -65,6 +67,7 @@ export function Topbar({
   onOpenSearch: () => void
 }) {
   const navigate = useNavigate()
+  const { language, setLanguage, t } = useVendorLanguage()
   const { seller, user, signOut } = useVendorAuth()
   const shopName = String(seller?.shop_name || 'Your store')
   const shopInitials = shopName.slice(0, 2).toUpperCase()
@@ -131,20 +134,21 @@ export function Topbar({
         </IconButton>
 
         <div className="hidden min-w-0 items-center gap-1.5 text-[11px] md:flex">
-          <span className="font-medium text-muted">Vendor Center</span>
+          <span className="font-medium text-muted">{t('Vendor Center')}</span>
           <ChevronRight size={12} className="text-[#B4B7AD]" />
           <span className="truncate font-semibold text-forest">{pageTitle}</span>
         </div>
         <p className="truncate font-display text-[13px] font-semibold text-forest md:hidden">{pageTitle}</p>
 
         <div className="ml-auto flex items-center gap-1 sm:gap-1.5">
+          <label className="flex h-9 items-center gap-1 rounded-full border border-line bg-white/80 px-2 text-[10px] font-semibold text-[#5C655A]" title={t("Dashboard language")}><Languages size={14}/><select aria-label={t("Dashboard language")} value={language} onChange={event => setLanguage(event.target.value as "en" | "ur" | "roman")} className="max-w-[94px] bg-transparent outline-none"><option value="en">English</option><option value="ur">اردو</option><option value="roman">Roman Urdu</option></select></label>
           <button
             type="button"
             onClick={onOpenSearch}
             className="hidden h-9 w-[230px] items-center gap-2 rounded-full border border-line bg-white/80 px-3.5 text-[11px] text-[#8B9187] transition hover:border-[#D6D1C3] hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-600 focus-visible:ring-offset-2 sm:flex xl:w-[270px]"
           >
             <Search size={14} className="flex-none" />
-            <span className="min-w-0 flex-1 truncate text-left">Search orders, products, pages…</span>
+            <span className="min-w-0 flex-1 truncate text-left">{t('Search orders, products, pages…')}</span>
             <kbd className="rounded border border-line bg-cream-100 px-1.5 py-0.5 font-sans text-[9px] font-semibold text-[#8B9187]">
               ⌘K
             </kbd>
@@ -155,7 +159,7 @@ export function Topbar({
 
           <div className="mx-1 hidden items-center gap-2 rounded-full border border-line bg-white/70 py-1.5 pl-3 pr-3 xl:flex">
             <span className={cx('h-1.5 w-1.5 rounded-full', storeIsOpen ? 'bg-sage-600' : 'bg-clay')} />
-            <span className="text-[10px] font-semibold text-[#5C655A]">{storeIsOpen ? 'Store live' : 'Store closed'}</span>
+            <span className="text-[10px] font-semibold text-[#5C655A]">{storeIsOpen ? t('Store live') : t('Store closed')}</span>
           </div>
 
           <div ref={notificationRef} className="relative">
@@ -185,7 +189,7 @@ export function Topbar({
               <div className="animate-rise absolute right-0 top-11 z-50 w-[min(370px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-line bg-white shadow-lift">
                 <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
                   <div>
-                    <p className="font-display text-[13px] font-semibold text-forest">Notifications</p>
+                    <p className="font-display text-[13px] font-semibold text-forest">{t('Notifications')}</p>
                     <p className="text-[9.5px] text-muted">{unreadCount ? `${unreadCount} unread updates` : 'You are all caught up'}</p>
                   </div>
                   <button

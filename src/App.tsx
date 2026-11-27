@@ -13,6 +13,7 @@ import { InventoryPage } from './pages/Inventory'
 import { GuidePage } from './pages/Guide'
 import { SupportPage } from './pages/Support'
 import { SettingsPage } from './pages/Settings'
+import { VendorLanguageProvider } from './context/VendorLanguageContext'
 
 function VendorAccessRoute() {
   const { user, seller, loading, configured, suspensionReason } = useVendorAuth()
@@ -35,6 +36,7 @@ function VendorAccessRoute() {
 
   return (
     <AppProvider>
+      <VendorLanguageProvider>
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<OverviewPage />} />
@@ -49,6 +51,7 @@ function VendorAccessRoute() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
+      </VendorLanguageProvider>
     </AppProvider>
   )
 }
