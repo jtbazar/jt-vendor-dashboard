@@ -7,7 +7,7 @@ import {
   ReceiptText,
   Settings,
   Star,
-  UtensilsCrossed,
+  Package,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -28,7 +28,7 @@ export const navSections: NavSection[] = [
     items: [
       { label: 'Overview', to: '/', icon: LayoutDashboard },
       { label: 'Orders', to: '/orders', icon: ReceiptText },
-      { label: 'Products', to: '/menu', icon: UtensilsCrossed },
+      { label: 'Products', to: '/products', icon: Package },
     ],
   },
   {
@@ -59,7 +59,7 @@ export const allNavItems = navSections.flatMap((section) => section.items)
 export const pageTitles: Record<string, string> = {
   '/': 'Overview',
   '/orders': 'Orders',
-  '/menu': 'Products',
+  '/products': 'Products',
   '/promotions': 'Promotions',
   '/reviews': 'Reviews',
   '/inventory': 'Inventory',

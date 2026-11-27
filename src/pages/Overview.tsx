@@ -55,8 +55,8 @@ export function OverviewPage() {
   const openCases = data.cases.filter(row => !['resolved', 'closed', 'admin_decided'].includes(String(row.status ?? '').toLowerCase())).length
 
   const stats = [
-    { label: 'Your products', value: data.products.length, note: 'Listings in your seller account', icon: Package, to: '/menu' },
-    { label: 'Live products', value: liveProducts, note: 'Approved and visible', icon: Store, to: '/menu' },
+    { label: 'Your products', value: data.products.length, note: 'Listings in your seller account', icon: Package, to: '/products' },
+    { label: 'Live products', value: liveProducts, note: 'Approved and visible', icon: Store, to: '/products' },
     { label: 'Recent open orders', value: openOrders, note: 'From the latest order records loaded', icon: ReceiptText, to: '/orders' },
     { label: 'Low-stock records', value: lowStock, note: 'At or below the stock threshold', icon: Boxes, to: '/inventory' },
   ]
