@@ -50,7 +50,7 @@ export function OverviewPage() {
 
   const liveProducts = data.products.filter(product => product.moderation_status === 'approved' && !product.vendor_hidden).length
   const pendingProducts = data.products.filter(product => product.moderation_status === 'pending_review').length
-  const lowStock = data.inventory.filter(row => Number(row.quantity ?? 0) <= Number(row.low_stock_threshold ?? 5)).length
+  const lowStock = data.inventory.filter(row => row.low_stock_threshold != null && Number(row.quantity ?? 0) <= Number(row.low_stock_threshold)).length
   const openOrders = data.orders.filter(order => !['delivered', 'cancelled'].includes(String(order.vendor_fulfillment_status ?? '').toLowerCase())).length
   const openCases = data.cases.filter(row => !['resolved', 'closed', 'admin_decided'].includes(String(row.status ?? '').toLowerCase())).length
 
