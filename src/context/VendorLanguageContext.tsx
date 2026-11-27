@@ -30,16 +30,17 @@ export function VendorLanguageProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.lang = language === 'ur' ? 'ur' : 'en'
     document.documentElement.dir = language === 'ur' ? 'rtl' : 'ltr'
+    const applyText = (item: Text) => {
+      const parent = item.parentElement
+      if (!parent || ['SCRIPT','STYLE','TEXTAREA'].includes(parent.tagName)) return
+      if (!textOriginals.has(item)) textOriginals.set(item, item.nodeValue || '')
+      item.nodeValue = translate(textOriginals.get(item) || '', language)
+    }
     const scan = (root: Node) => {
+      if (root.nodeType === Node.TEXT_NODE) applyText(root as Text)
       const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
       let node: Node | null
-      while ((node = walker.nextNode())) {
-        const item = node as Text
-        if (!textOriginals.has(item)) textOriginals.set(item, item.nodeValue || '')
-        const parent = item.parentElement
-        if (!parent || ['SCRIPT','STYLE','TEXTAREA'].includes(parent.tagName)) continue
-        item.nodeValue = translate(textOriginals.get(item) || '', language)
-      }
+      while ((node = walker.nextNode())) applyText(node as Text)
       const elements = root instanceof Element ? [root, ...Array.from(root.querySelectorAll('*'))] : []
       for (const element of elements) {
         let attrs = attrOriginals.get(element)
@@ -53,7 +54,7 @@ export function VendorLanguageProvider({ children }: { children: ReactNode }) {
       }
     }
     scan(document.body)
-    const observer = new MutationObserver(records => records.forEach(record => record.addedNodes.forEach(node => scan(node))))
+    const observer = new MutationObserver(records => records.forEach(record => {\n      record.addedNodes.forEach(node => scan(node))\n      if (record.type === 'characterData' && record.target.nodeType === Node.TEXT_NODE) {\n        const item = record.target as Text\n        const original = textOriginals.get(item)\n        if (original !== undefined && item.nodeValue !== translate(original, language)) {\n          textOriginals.set(item, item.nodeValue || '')\n          applyText(item)\n        }\n      }\n    }))
     observer.observe(document.body, { childList: true, subtree: true, characterData: true })
     return () => observer.disconnect()
   }, [language])
