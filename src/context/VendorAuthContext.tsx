@@ -1,11 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
+import { getVendorAccountSuspensionReason } from '../services/marketplaceApi'
 import { getSupabase, isSupabaseConfigured, supabase } from '../lib/supabase'
 
 export interface VendorAuthValue {
   user: User | null
   session: Session | null
   seller: Record<string, any> | null
+  suspensionReason: string | null
   loading: boolean
   configured: boolean
   refreshSeller: () => Promise<void>
@@ -17,6 +19,7 @@ const VendorAuthContext = createContext<VendorAuthValue | null>(null)
 export function VendorAuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [seller, setSeller] = useState<Record<string, any> | null>(null)
+  const [suspensionReason, setSuspensionReason] = useState<string | null>(null)
   const [loading, setLoading] = useState(isSupabaseConfigured)
 
   const refreshSeller = useCallback(async () => {
@@ -27,6 +30,7 @@ export function VendorAuthProvider({ children }: { children: ReactNode }) {
     const { data: { user }, error: userError } = await supabase.auth.getUser()
     if (userError || !user) {
       setSeller(null)
+      setSuspensionReason(null)
       return
     }
     const { data, error } = await supabase
@@ -35,7 +39,9 @@ export function VendorAuthProvider({ children }: { children: ReactNode }) {
       .eq('user_id', user.id)
       .maybeSingle()
     if (error) throw new Error(error.message)
+    const reason = await getVendorAccountSuspensionReason()
     setSeller(data as Record<string, any> | null)
+    setSuspensionReason(reason)
   }, [])
 
   useEffect(() => {
@@ -51,6 +57,7 @@ export function VendorAuthProvider({ children }: { children: ReactNode }) {
       setSession(nextSession)
       if (!nextSession?.user) {
         setSeller(null)
+        setSuspensionReason(null)
         setLoading(false)
         return
       }
@@ -81,6 +88,7 @@ export function VendorAuthProvider({ children }: { children: ReactNode }) {
     user: session?.user ?? null,
     session,
     seller,
+    suspensionReason,
     loading,
     configured: isSupabaseConfigured,
     refreshSeller,
@@ -88,7 +96,7 @@ export function VendorAuthProvider({ children }: { children: ReactNode }) {
       const { error } = await getSupabase().auth.signOut()
       if (error) throw new Error(error.message)
     },
-  }), [session, seller, loading, refreshSeller])
+  }), [session, seller, suspensionReason, loading, refreshSeller])
 
   return <VendorAuthContext.Provider value={value}>{children}</VendorAuthContext.Provider>
 }
