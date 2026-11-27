@@ -11,10 +11,13 @@ export function VendorAuthCallbackPage() {
     let active = true
     async function finish() {
       try {
-        const providerError = params.get('error_description') || params.get('error')
+        const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+        const providerError = params.get('error_description') || params.get('error') || hash.get('error_description') || hash.get('error')
         if (providerError) throw new Error(providerError.replace(/\\+/g, ' '))
         const code = params.get('code')
-        const expectedEmail = params.get('expected_email') || ''
+        const expectedEmailKey = 'jtbazar_vendor_google_expected_email'
+        const expectedEmail = window.sessionStorage.getItem(expectedEmailKey) || ''
+        window.sessionStorage.removeItem(expectedEmailKey)
         if (!code || !expectedEmail) throw new Error('The Google sign-in response is incomplete. Please start again.')
         await completeVendorGoogleSignIn(code, expectedEmail)
         if (active) navigate('/marketplace', { replace: true })
