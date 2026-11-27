@@ -451,6 +451,21 @@ export async function uploadVendorVariantImage(productId: string, file: File) {
 
 export async function setVendorPrimaryProductImage(productId: string, imageId: string) {
   const client = getSupabase()
+  const { data: images, error: listError } = await client.from('product_images')
+    .select('id, sort_order').eq('product_id', productId).order('sort_order', { ascending: true }).limit(100)
+  assertNoError(listError)
+  const target = (images ?? []).find(image => image.id === imageId)
+  if (!target) throw new Error('The selected product image could not be found.')
+  const first = (images ?? [])[0]
+  if (first && first.id !== target.id) {
+    const temporaryOrder = Math.max(...(images ?? []).map(image => Number(image.sort_order))) + 1
+    const { error: tempError } = await client.from('product_images').update({ sort_order: temporaryOrder }).eq('id', target.id).eq('product_id', productId)
+    assertNoError(tempError)
+    const { error: firstError } = await client.from('product_images').update({ sort_order: target.sort_order }).eq('id', first.id).eq('product_id', productId)
+    assertNoError(firstError)
+    const { error: targetError } = await client.from('product_images').update({ sort_order: first.sort_order }).eq('id', target.id).eq('product_id', productId)
+    assertNoError(targetError)
+  }
   const { error: clearError } = await client.from('product_images').update({ is_primary: false }).eq('product_id', productId)
   assertNoError(clearError)
   const { error } = await client.from('product_images').update({ is_primary: true }).eq('id', imageId).eq('product_id', productId)
