@@ -21,16 +21,17 @@ export function BrandMark({ size = 36 }: { size?: number }) {
 
 function sectionsForBusinessType(businessType?: string | null) {
   const type = (businessType || 'individual_seller').toLowerCase()
-  const restaurant = type === 'restaurant' || type === 'cafe'
-  const allowed = restaurant
-    ? new Set(['/', '/orders', '/kitchen', '/menu', '/promotions', '/customers', '/reviews', '/inventory', '/earnings', '/analytics', '/support', '/settings'])
-    : new Set(['/', '/menu', '/orders', '/inventory', '/promotions', '/customers', '/reviews', '/earnings', '/analytics', '/support', '/settings'])
-
+  const modules: Record<string, string[]> = {
+    individual_seller: ['/', '/menu', '/orders', '/inventory', '/promotions', '/customers', '/reviews', '/earnings', '/support', '/settings'],
+    retail_store: ['/', '/menu', '/orders', '/inventory', '/promotions', '/customers', '/reviews', '/earnings', '/analytics', '/support', '/settings'],
+    restaurant: ['/', '/orders', '/kitchen', '/menu', '/promotions', '/customers', '/reviews', '/inventory', '/earnings', '/analytics', '/support', '/settings'],
+    cafe: ['/', '/orders', '/kitchen', '/menu', '/promotions', '/customers', '/reviews', '/inventory', '/earnings', '/analytics', '/support', '/settings'],
+    grocery_store: ['/', '/menu', '/orders', '/inventory', '/promotions', '/customers', '/reviews', '/earnings', '/analytics', '/support', '/settings'],
+    bakery: ['/', '/menu', '/orders', '/kitchen', '/inventory', '/promotions', '/customers', '/reviews', '/earnings', '/support', '/settings'],
+  }
+  const allowed = new Set(modules[type] ?? modules.individual_seller)
   return navSections
-    .map((section) => ({
-      ...section,
-      items: section.items.filter((item) => allowed.has(item.to)),
-    }))
+    .map((section) => ({ ...section, items: section.items.filter((item) => allowed.has(item.to)) }))
     .filter((section) => section.items.length > 0)
 }
 
@@ -50,6 +51,7 @@ export function Sidebar({
   const newOrders = orders.filter((order) => order.status === 'new').length
   const preparing = orders.filter((order) => order.status === 'preparing').length
   const sections = sectionsForBusinessType(seller?.business_type)
+  const isFoodBusiness = ['restaurant', 'cafe', 'bakery'].includes(String(seller?.business_type || '').toLowerCase())
   const shopName = seller?.shop_name || 'Your store'
   const ownerName = seller?.owner_full_name || user?.user_metadata?.full_name || user?.email || 'Vendor'
   const businessType = businessTypeLabel(seller?.business_type)
@@ -122,7 +124,7 @@ export function Sidebar({
                       <>
                         <span className={cx('absolute left-0 top-1/2 h-3.5 w-[3px] -translate-y-1/2 rounded-r-full bg-clay transition-opacity', isActive ? 'opacity-100' : 'opacity-0')} />
                         <Icon size={16} strokeWidth={1.8} className={cx('flex-none transition-colors', isActive ? 'text-sage-300' : 'text-[#8B9A85] group-hover:text-sage-300')} />
-                        <span className="min-w-0 flex-1 truncate">{!restaurant && item.to === '/menu' ? 'Products' : item.label}</span>
+                        <span className="min-w-0 flex-1 truncate">{!isFoodBusiness && item.to === '/menu' ? 'Products' : item.label}</span>
                         {badge > 0 ? (
                           <span className={cx('grid h-[17px] min-w-[17px] place-items-center rounded-full px-1 text-[9px] font-bold leading-none', item.badgeKey === 'newOrders' ? 'bg-clay text-white' : 'bg-white/10 text-sage-200')}>
                             {badge}
