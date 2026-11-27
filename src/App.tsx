@@ -10,6 +10,7 @@ import { MenuPage } from './pages/Menu'
 import { PromotionsPage } from './pages/Promotions'
 import { ReviewsPage } from './pages/Reviews'
 import { InventoryPage } from './pages/Inventory'
+import { GuidePage } from './pages/Guide'
 import { SupportPage } from './pages/Support'
 import { SettingsPage } from './pages/Settings'
 
@@ -42,6 +43,7 @@ function VendorAccessRoute() {
           <Route path="promotions" element={<PromotionsPage />} />
           <Route path="reviews" element={<ReviewsPage />} />
           <Route path="inventory" element={<InventoryPage />} />
+          <Route path="guide" element={<GuidePage />} />
           <Route path="support" element={<SupportPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
