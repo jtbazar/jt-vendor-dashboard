@@ -584,7 +584,7 @@ export async function updateVendorShopProfile(input: {
   shop_name: string; slug?: string; description: string; phone: string;
   current_address: string; complete_address: string; shop_lat?: number | null;
   shop_lng?: number | null; shop_location_label?: string; show_shop_on_map?: boolean;
-  shop_hours?: Record<string, { open: boolean; start: string; end: string }>;
+  shop_hours?: Record<string, unknown>;
   shop_is_open?: boolean; shop_image_url?: string | null;
   document_path?: string | null; cnic_front_path?: string | null; cnic_back_path?: string | null;
 }) {
