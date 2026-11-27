@@ -347,14 +347,14 @@ export async function updateVendorProduct(productId: string, input: {
   return data as VendorProduct
 }
 
-export async function listVendorCategories(): Promise<Array<{ id: string; name: string; parent_id: string | null }>> {
+export async function listVendorCategories(): Promise<Array<{ id: string; name: string; parent_id: string | null; is_food_category: boolean }>> {
   const { data, error } = await getSupabase().from('categories')
-    .select('id, name, parent_id')
+    .select('id, name, parent_id, is_food_category')
     .eq('is_active', true)
     .order('name', { ascending: true })
     .limit(500)
   assertNoError(error)
-  return (data ?? []) as Array<{ id: string; name: string; parent_id: string | null }>
+  return (data ?? []) as Array<{ id: string; name: string; parent_id: string | null; is_food_category: boolean }>
 }
 
 export async function uploadVendorProductImage(productId: string, file: File, altText: string) {
