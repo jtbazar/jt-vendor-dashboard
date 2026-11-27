@@ -91,7 +91,7 @@ export async function getVendorAccountSuspensionReason(): Promise<string | null>
   assertNoError(authError)
   if (!user) return null
   const activeAuthBan = Boolean(user.banned_until && Date.parse(user.banned_until) > Date.now())
-  const { data: notices, error } = await client.from('notifications')
+  const { data: notices } = await client.from('notifications')
     .select('kind, title, body, created_at').eq('audience', 'customer')
     .order('created_at', { ascending: false }).limit(30)
   const suspensionState = (notices ?? []).find(notice =>
