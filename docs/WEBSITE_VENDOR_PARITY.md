@@ -29,7 +29,10 @@
 - [x] Added existing-RPC actions for product visibility, stock changes, and marking orders ready.
 - [x] Added product creation, product-image upload, existing submission-finalization RPC flow, and variant management using the existing variant RPC.
 - [x] Added GitHub Actions typecheck/build validation.
-- [ ] Complete parity for product editing, variants, shop profile editing, support tickets, and all restaurant modules.
+- [x] Added existing-RPC product variant management.
+- [x] Added support ticket inbox, message thread and ticket creation using existing support tables.
+- [x] Added basic shop profile editing through the existing seller profile RLS policy.
+- [ ] Complete product editing, full seller application flow, document management, and all restaurant modules.
 - [ ] Validate against a dedicated staging account and run end-to-end regression tests.
 - [ ] Obtain owner approval before any production deployment.
 
