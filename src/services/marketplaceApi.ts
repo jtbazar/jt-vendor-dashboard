@@ -472,29 +472,6 @@ export async function setVendorPrimaryProductImage(productId: string, imageId: s
   assertNoError(error)
 }
 
-export async function removeVendorProductImage(imageId: string, storagePath: string | null) {
-  const client = getSupabase()
-  const { data: image, error: lookupError } = await client.from('product_images')
-    .select('id, product_id, is_primary').eq('id', imageId).maybeSingle()
-  assertNoError(lookupError)
-  if (!image) throw new Error('The product image could not be found.')
-  const { error } = await client.from('product_images').delete().eq('id', imageId)
-  assertNoError(error)
-  if (storagePath) {
-    const { error: storageError } = await client.storage.from('product-images').remove([storagePath])
-    assertNoError(storageError)
-  }
-  if (image.is_primary) {
-    const { data: remaining, error: remainingError } = await client.from('product_images')
-      .select('id').eq('product_id', image.product_id).order('sort_order', { ascending: true }).limit(1)
-    assertNoError(remainingError)
-    if (remaining?.[0]) {
-      const { error: primaryError } = await client.from('product_images').update({ is_primary: true })
-        .eq('id', remaining[0].id).eq('product_id', image.product_id)
-      assertNoError(primaryError)
-    }
-  }
-}
 
 export async function requestVendorProductDeletion(productId: string, reason: string) {
   if (reason.trim().length < 3) throw new Error('Please provide a reason for the deletion request.')
