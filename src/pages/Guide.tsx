@@ -1,8 +1,6 @@
 import { BookOpen, CheckCircle2, ClipboardList, Image, Package, PackageCheck, MessageCircle, ShoppingBag, Store, Truck, Wallet } from 'lucide-react'
 import { Card, PageHeader } from '../components/ui'
-import { useVendorLanguage, type VendorLanguage } from '../context/VendorLanguageContext'
-
-type Language = VendorLanguage
+import { useVendorLanguage } from '../context/VendorLanguageContext'
 
 const guideCopy = {
   en: {
