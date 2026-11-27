@@ -19,6 +19,20 @@
 - Commission preview and earnings/settlement information.
 - Restaurant-specific menu, kitchen queue, promotions, customer reviews and analytics already represented in the standalone prototype.
 
+## Implementation status
+
+- [x] Isolated work on a feature branch.
+- [x] Added Vendor Center Supabase client configuration with a dedicated auth storage key.
+- [x] Added password verification followed by six-digit email OTP sign-in.
+- [x] Added approved-seller status gate.
+- [x] Added live product listing, inventory, vendor order, and customer case reads.
+- [x] Added existing-RPC actions for product visibility, stock changes, and marking orders ready.
+- [x] Added product creation, product-image upload, and existing submission-finalization RPC flow.
+- [x] Added GitHub Actions typecheck/build validation.
+- [ ] Complete parity for product editing, variants, shop profile editing, support tickets, and all restaurant modules.
+- [ ] Validate against a dedicated staging account and run end-to-end regression tests.
+- [ ] Obtain owner approval before any production deployment.
+
 ## First integration slice
 The initial marketplace integration adds the existing password-then-email-OTP sign-in flow, seller profile gate, and read/action views for listings, inventory, fulfilment and cases. It uses existing functions such as `vendor_list_products`, `vendor_order_items_page_v2`, `vendor_list_order_pickup_statuses`, `vendor_set_product_visibility`, `vendor_set_product_inventory`, and `vendor_mark_order_ready`.
 
