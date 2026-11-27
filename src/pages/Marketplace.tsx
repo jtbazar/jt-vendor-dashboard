@@ -232,30 +232,35 @@ export function MarketplacePage() {
       dimensions = JSON.parse(String(data.get('dimensions') || '{}'))
     } catch { setError('Specifications must be a valid JSON array and dimensions a valid JSON object.'); return }
     const slug = cleanName.toLowerCase().normalize('NFKD').replace(/[\\u0300-\\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    const productDetails = {
+      category_id: productCategory || null,
+      name: cleanName,
+      slug: `${slug}-${Date.now().toString(36)}`,
+      sku: String(data.get('sku') ?? '').trim() || null,
+      short_description: String(data.get('short_description') ?? productDescription).trim().slice(0, 300),
+      description: String(data.get('description') ?? productDescription).trim(),
+      price: Number(productPrice),
+      supplier_cost: data.get('supplier_cost') ? readNumber('supplier_cost') : null,
+      fulfillment_expense: readNumber('fulfillment_expense'),
+      minimum_profit: readNumber('minimum_profit'),
+      discount_percent: readNumber('discount_percent'),
+      weight_grams: data.get('weight_grams') ? readNumber('weight_grams') : null,
+      specifications,
+      dimensions,
+      seo_title: String(data.get('seo_title') ?? '').trim() || null,
+      seo_description: String(data.get('seo_description') ?? '').trim() || null,
+    }
     const succeeded = await runAction(async () => {
       let productId = createdProductId
       if (!productId) {
         productId = await createVendorProduct({
-        category_id: productCategory || null,
-        name: cleanName,
-        slug: `${slug}-${Date.now().toString(36)}`,
-        sku: String(data.get('sku') ?? '').trim() || null,
-        short_description: String(data.get('short_description') ?? productDescription).trim().slice(0, 300),
-        description: String(data.get('description') ?? productDescription).trim(),
-        price: Number(productPrice),
-        supplier_cost: data.get('supplier_cost') ? readNumber('supplier_cost') : null,
-        fulfillment_expense: readNumber('fulfillment_expense'),
-        minimum_profit: readNumber('minimum_profit'),
-        track_inventory: data.get('track_inventory') !== 'off',
-        discount_percent: readNumber('discount_percent'),
-        weight_grams: data.get('weight_grams') ? readNumber('weight_grams') : null,
-        specifications,
-        dimensions,
-        seo_title: String(data.get('seo_title') ?? '').trim() || null,
-        seo_description: String(data.get('seo_description') ?? '').trim() || null,
-        initial_stock: Number(productStock),
+          ...productDetails,
+          track_inventory: data.get('track_inventory') !== 'off',
+          initial_stock: Number(productStock),
         })
         setCreatedProductId(productId)
+      } else {
+        await updateVendorProduct(productId, productDetails)
       }
       for (let imageIndex = uploadedProductImageCount; imageIndex < productImagesFiles.length; imageIndex += 1) {
         await uploadVendorProductImage(productId, productImagesFiles[imageIndex], cleanName)
