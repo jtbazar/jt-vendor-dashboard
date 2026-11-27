@@ -44,8 +44,10 @@ export function VendorAuthProvider({ children }: { children: ReactNode }) {
       return
     }
     let active = true
+    let receivedAuthEvent = false
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!active) return
+      receivedAuthEvent = true
       setSession(nextSession)
       if (!nextSession?.user) {
         setSeller(null)
@@ -61,9 +63,11 @@ export function VendorAuthProvider({ children }: { children: ReactNode }) {
     })
     void supabase.auth.getSession().then(async ({ data, error }) => {
       if (!active) return
-      setSession(error ? null : data.session)
-      if (data.session?.user) {
-        try { await refreshSeller() } catch { setSeller(null) }
+      if (!receivedAuthEvent) {
+        setSession(error ? null : data.session)
+        if (data.session?.user) {
+          try { await refreshSeller() } catch { setSeller(null) }
+        }
       }
       if (active) setLoading(false)
     })
