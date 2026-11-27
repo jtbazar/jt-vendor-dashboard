@@ -397,6 +397,14 @@ export async function getVendorCaseEvidenceUrl(path: string) {
   return data.signedUrl
 }
 
+export async function listVendorInventoryMovements() {
+  const { data, error } = await getSupabase().from('inventory_movements')
+    .select('id, product_id, variant_id, quantity_delta, movement_type, note, created_at')
+    .order('created_at', { ascending: false }).limit(100)
+  assertNoError(error)
+  return data ?? []
+}
+
 export async function listVendorProductImages(productId: string) {
   const client = getSupabase()
   const { data, error } = await client.from('product_images')
