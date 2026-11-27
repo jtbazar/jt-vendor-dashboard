@@ -73,18 +73,20 @@ export function EarningsPage() {
       <PageHeader
         eyebrow={<><Wallet size={12} /> Money &amp; settlements</>}
         title="COD, commission, one clear ledger."
-        description="Own-rider and pickup cash stays with you; JTBazar-rider cash is collected by the platform. Every commission entry is reconciled weekly and Admin verifies the payment before it is marked paid."
+        description="Financial figures are calculated only from ledger and settlement records returned for your seller account. No estimated earnings or sample settlements are displayed."
         actions={
           <>
-            <Button variant="secondary" onClick={() => pushToast('Statement download', 'A PDF statement for 17–23 Nov would download here.', 'info')}>
+            <Button variant="secondary" disabled={ledger.length === 0 && settlements.length === 0} onClick={() => pushToast('Statement unavailable', 'A statement can be downloaded when live financial records are connected.', 'info')}>
               <Download size={14} /> Download statement
             </Button>
-            <Button variant="primary" onClick={() => setPaymentOpen(true)}>
+            <Button variant="primary" disabled={ledger.length === 0 && settlements.length === 0} onClick={() => setPaymentOpen(true)}>
               <Upload size={14} /> Record payment proof
             </Button>
           </>
         }
       />
+
+      {ledger.length === 0 && settlements.length === 0 ? <Card className="border border-amber-200 bg-amber-50 p-4"><p className="text-xs font-semibold text-amber-900">Live earnings records are not connected yet</p><p className="mt-1 text-[10px] text-amber-800">The ledger and settlement APIs are not currently available in this vendor app. Financial totals remain empty instead of showing demo amounts; payment-proof actions are disabled.</p></Card> : null}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.75fr)]">
         <section className="relative overflow-hidden rounded-2xl bg-forest p-5 text-cream-50 shadow-card sm:p-6">
