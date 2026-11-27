@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { ArrowRight, LockKeyhole, Mail, ShieldCheck } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { sendVendorLoginOtp, startVendorGoogleSignIn, verifyVendorLoginOtp, verifyVendorPassword } from '../services/marketplaceApi'
@@ -13,6 +13,13 @@ export function VendorLoginPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [resendSeconds, setResendSeconds] = useState(0)
+
+  useEffect(() => {
+    if (resendSeconds <= 0) return
+    const timer = window.setTimeout(() => setResendSeconds(value => Math.max(0, value - 1)), 1000)
+    return () => window.clearTimeout(timer)
+  }, [resendSeconds])
 
   async function submitPassword(event: FormEvent) {
     event.preventDefault()
@@ -23,6 +30,7 @@ export function VendorLoginPage() {
       const sent = await sendVendorLoginOtp(email)
       if (sent.error) throw new Error(sent.error.message)
       setStep('otp')
+      setResendSeconds(60)
       setNotice('A 6-digit verification code has been sent to your email.')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Sign in could not be completed.')
@@ -67,8 +75,9 @@ export function VendorLoginPage() {
         <p className="mt-2 text-sm text-muted">Enter the 6-digit code sent to <strong>{email}</strong>.</p>
         <form className="mt-6 space-y-4" onSubmit={submitOtp}>
           <label className="block text-sm font-medium">Email verification code<input className="mt-1 h-12 w-full rounded-xl border border-line px-4 text-center text-xl tracking-[.35em] outline-none" inputMode="numeric" autoComplete="one-time-code" maxLength={6} required value={otp} onChange={e=>setOtp(e.target.value.replace(/\D/g,'').slice(0,6))}/></label>
-          <button disabled={busy} className="h-11 w-full rounded-xl bg-forest px-4 text-sm font-semibold text-white disabled:opacity-60">{busy?'Verifying…':'Verify and sign in'}</button>
-          <button type="button" disabled={busy} onClick={()=>{setStep('password');setOtp('');setNotice('')}} className="w-full text-sm font-medium text-sage-700">Back to password</button>
+          <button type="submit" disabled={busy} className="h-11 w-full rounded-xl bg-forest px-4 text-sm font-semibold text-white disabled:opacity-60">{busy?'Verifying…':'Verify and sign in'}</button>
+          <button type="button" disabled={busy || resendSeconds > 0} onClick={async()=>{setBusy(true);setError('');setNotice('');try{const result=await sendVendorLoginOtp(email);if(result.error)throw new Error(result.error.message);setResendSeconds(60);setNotice('A new verification code has been sent.')}catch(cause){setError(cause instanceof Error?cause.message:'The code could not be resent.')}finally{setBusy(false)}}} className="w-full text-sm font-medium text-sage-700 disabled:opacity-50">{resendSeconds > 0 ? `Resend code in ${resendSeconds}s` : 'Resend verification code'}</button>
+          <button type="button" disabled={busy} onClick={()=>{setStep('password');setOtp('');setNotice('');setResendSeconds(0)}} className="w-full text-sm font-medium text-sage-700">Back to password</button>
         </form>
       </>}
       {notice && <p role="status" className="mt-4 rounded-xl bg-sage-50 p-3 text-sm text-sage-800">{notice}</p>}
