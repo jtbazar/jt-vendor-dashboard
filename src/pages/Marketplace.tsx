@@ -63,7 +63,7 @@ export function MarketplacePage() {
   const [variantsLoading, setVariantsLoading] = useState(false)
   const [variantImageFiles, setVariantImageFiles] = useState<Record<string, File>>({})
   const [imageProduct, setImageProduct] = useState<VendorProduct | null>(null)
-  const [productImages, setProductImages] = useState<Array<{id:string;url:string;storage_path:string|null;is_primary:boolean;sort_order:number}>>([])
+  const [productImages, setProductImages] = useState<Array<{id:string;url:string;storage_path:string|null;is_primary:boolean;sort_order:number;alt_text?:string|null}>>([])
   const [galleryFile, setGalleryFile] = useState<File | null>(null)
   const [supportTickets, setSupportTickets] = useState<Array<Record<string, any>>>([])
   const [supportMessages, setSupportMessages] = useState<Array<Record<string, any>>>([])
