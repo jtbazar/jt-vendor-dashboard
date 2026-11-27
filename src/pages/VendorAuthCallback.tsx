@@ -22,6 +22,7 @@ export function VendorAuthCallbackPage() {
         await completeVendorGoogleSignIn(code, expectedEmail)
         if (active) navigate('/marketplace', { replace: true })
       } catch (cause) {
+        window.sessionStorage.removeItem('jtbazar_vendor_google_expected_email')
         if (active) setError(cause instanceof Error ? cause.message : 'Google sign-in could not be completed.')
       }
     }
