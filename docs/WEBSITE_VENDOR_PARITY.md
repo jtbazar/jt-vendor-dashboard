@@ -32,7 +32,7 @@
 - [x] Added live product listing, inventory, vendor order, and customer case reads.
 - [x] Added existing-RPC actions for product visibility, stock changes, and marking orders ready.
 - [x] Added product creation, compressed product-image upload, existing submission-finalization RPC flow, variant management and variant image uploads.
-- [x] Added product image gallery with primary-image selection and image removal.
+- [x] Added product image gallery and optimized multi-image upload using the existing seller INSERT policy; no unsupported image UPDATE/DELETE permission is assumed.
 - [x] Added seller product-removal requests through the existing deletion RPC.
 - [x] Added order search, website-aligned delivery-status filters and pagination.
 - [x] Added case evidence links through short-lived private storage URLs.
