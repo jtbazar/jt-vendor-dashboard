@@ -5,7 +5,6 @@ import {
   Reply,
   Search,
   Star,
-  ThumbsUp,
   Timer,
 } from 'lucide-react'
 import {
