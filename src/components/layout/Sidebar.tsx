@@ -1,15 +1,10 @@
 import { Link, NavLink } from 'react-router-dom'
-import {
-  ChevronsUpDown,
-  FlaskConical,
-  LogOut,
-  Sparkles,
-} from 'lucide-react'
+import { ChevronsUpDown, LogOut } from 'lucide-react'
 import { navSections } from '../../nav'
 import { useApp } from '../../store'
+import { useVendorAuth } from '../../context/VendorAuthContext'
 import { cx } from '../../utils'
-import { Avatar, Toggle } from '../ui'
-import { store } from '../../data/mock'
+import { Avatar } from '../ui'
 
 export function BrandMark({ size = 36 }: { size?: number }) {
   return (
@@ -24,6 +19,26 @@ export function BrandMark({ size = 36 }: { size?: number }) {
   )
 }
 
+function sectionsForBusinessType(businessType?: string | null) {
+  const type = (businessType || 'individual_seller').toLowerCase()
+  const modules: Record<string, string[]> = {
+    individual_seller: ['/', '/menu', '/orders', '/inventory', '/promotions', '/customers', '/reviews', '/earnings', '/support', '/settings'],
+    retail_store: ['/', '/menu', '/orders', '/inventory', '/promotions', '/customers', '/reviews', '/earnings', '/analytics', '/support', '/settings'],
+    restaurant: ['/', '/orders', '/kitchen', '/menu', '/promotions', '/customers', '/reviews', '/inventory', '/earnings', '/analytics', '/support', '/settings'],
+    cafe: ['/', '/orders', '/kitchen', '/menu', '/promotions', '/customers', '/reviews', '/inventory', '/earnings', '/analytics', '/support', '/settings'],
+    grocery_store: ['/', '/menu', '/orders', '/inventory', '/promotions', '/customers', '/reviews', '/earnings', '/analytics', '/support', '/settings'],
+    bakery: ['/', '/menu', '/orders', '/kitchen', '/inventory', '/promotions', '/customers', '/reviews', '/earnings', '/support', '/settings'],
+  }
+  const allowed = new Set(modules[type] ?? modules.individual_seller)
+  return navSections
+    .map((section) => ({ ...section, items: section.items.filter((item) => allowed.has(item.to)) }))
+    .filter((section) => section.items.length > 0)
+}
+
+function businessTypeLabel(value?: string | null) {
+  return (value || 'Individual seller').replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
 export function Sidebar({
   open,
   onClose,
@@ -31,9 +46,16 @@ export function Sidebar({
   open: boolean
   onClose: () => void
 }) {
-  const { orders, storeOnline, setStoreOnline, pushToast } = useApp()
+  const { orders } = useApp()
+  const { seller, user, signOut } = useVendorAuth()
   const newOrders = orders.filter((order) => order.status === 'new').length
   const preparing = orders.filter((order) => order.status === 'preparing').length
+  const sections = sectionsForBusinessType(seller?.business_type)
+  const isFoodBusiness = ['restaurant', 'cafe', 'bakery'].includes(String(seller?.business_type || '').toLowerCase())
+  const shopName = seller?.shop_name || 'Your store'
+  const ownerName = seller?.owner_full_name || user?.user_metadata?.full_name || user?.email || 'Vendor'
+  const businessType = businessTypeLabel(seller?.business_type)
+  const isOpen = seller?.shop_is_open === true
 
   return (
     <aside
@@ -63,22 +85,20 @@ export function Sidebar({
         className="relative mt-5 flex items-center gap-2.5 rounded-xl border border-white/[0.09] bg-white/[0.055] p-2.5 transition hover:bg-white/[0.09]"
       >
         <span className="grid h-9 w-9 flex-none place-items-center rounded-lg bg-sage-400/20 font-display text-[12px] font-semibold text-sage-200">
-          AM
+          {shopName.slice(0, 2).toUpperCase()}
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
-            <span className="truncate text-[12px] font-semibold text-cream-50">{store.name}</span>
-            <span className={cx('h-1.5 w-1.5 flex-none rounded-full', storeOnline ? 'bg-[#9CC47D]' : 'bg-clay')} />
+            <span className="truncate text-[12px] font-semibold text-cream-50">{shopName}</span>
+            <span className={cx('h-1.5 w-1.5 flex-none rounded-full', isOpen ? 'bg-[#9CC47D]' : 'bg-clay')} />
           </span>
-          <span className="mt-0.5 block truncate text-[9.5px] text-[#93A18D]">
-            Restaurant · {store.area}
-          </span>
+          <span className="mt-0.5 block truncate text-[9.5px] text-[#93A18D]">{businessType}</span>
         </span>
         <ChevronsUpDown size={13} className="flex-none text-[#7F8D79]" />
       </Link>
 
       <nav className="relative mt-6 flex-1">
-        {navSections.map((section) => (
+        {sections.map((section) => (
           <div key={section.label} className="mb-5">
             <p className="mb-1.5 px-3 text-[8.5px] font-semibold uppercase tracking-[0.18em] text-[#74836E]">
               {section.label}
@@ -86,8 +106,7 @@ export function Sidebar({
             <div className="grid gap-0.5">
               {section.items.map((item) => {
                 const Icon = item.icon
-                const badge =
-                  item.badgeKey === 'newOrders' ? newOrders : item.badgeKey === 'preparing' ? preparing : 0
+                const badge = item.badgeKey === 'newOrders' ? newOrders : item.badgeKey === 'preparing' ? preparing : 0
                 return (
                   <NavLink
                     key={item.to}
@@ -97,35 +116,17 @@ export function Sidebar({
                     className={({ isActive }) =>
                       cx(
                         'group relative flex items-center gap-2.5 rounded-lg px-3 py-[9px] text-[12px] font-medium transition-colors',
-                        isActive
-                          ? 'bg-white/[0.085] text-white'
-                          : 'text-[#B3BFAE] hover:bg-white/[0.045] hover:text-cream-50',
+                        isActive ? 'bg-white/[0.085] text-white' : 'text-[#B3BFAE] hover:bg-white/[0.045] hover:text-cream-50',
                       )
                     }
                   >
                     {({ isActive }) => (
                       <>
-                        <span
-                          className={cx(
-                            'absolute left-0 top-1/2 h-3.5 w-[3px] -translate-y-1/2 rounded-r-full bg-clay transition-opacity',
-                            isActive ? 'opacity-100' : 'opacity-0',
-                          )}
-                        />
-                        <Icon
-                          size={16}
-                          strokeWidth={1.8}
-                          className={cx('flex-none transition-colors', isActive ? 'text-sage-300' : 'text-[#8B9A85] group-hover:text-sage-300')}
-                        />
-                        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                        <span className={cx('absolute left-0 top-1/2 h-3.5 w-[3px] -translate-y-1/2 rounded-r-full bg-clay transition-opacity', isActive ? 'opacity-100' : 'opacity-0')} />
+                        <Icon size={16} strokeWidth={1.8} className={cx('flex-none transition-colors', isActive ? 'text-sage-300' : 'text-[#8B9A85] group-hover:text-sage-300')} />
+                        <span className="min-w-0 flex-1 truncate">{!isFoodBusiness && item.to === '/menu' ? 'Products' : item.label}</span>
                         {badge > 0 ? (
-                          <span
-                            className={cx(
-                              'grid h-[17px] min-w-[17px] place-items-center rounded-full px-1 text-[9px] font-bold leading-none',
-                              item.badgeKey === 'newOrders'
-                                ? 'bg-clay text-white'
-                                : 'bg-white/10 text-sage-200',
-                            )}
-                          >
+                          <span className={cx('grid h-[17px] min-w-[17px] place-items-center rounded-full px-1 text-[9px] font-bold leading-none', item.badgeKey === 'newOrders' ? 'bg-clay text-white' : 'bg-white/10 text-sage-200')}>
                             {badge}
                           </span>
                         ) : null}
@@ -143,51 +144,28 @@ export function Sidebar({
         <div className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3 py-2.5">
           <div className="min-w-0">
             <p className="flex items-center gap-1.5 text-[11px] font-semibold text-cream-50">
-              <span className={cx('h-1.5 w-1.5 rounded-full', storeOnline ? 'bg-[#9CC47D]' : 'bg-clay')} />
-              {storeOnline ? 'Accepting orders' : 'Store paused'}
+              <span className={cx('h-1.5 w-1.5 rounded-full', isOpen ? 'bg-[#9CC47D]' : 'bg-clay')} />
+              {isOpen ? 'Store open' : 'Store closed'}
             </p>
-            <p className="mt-0.5 text-[9px] text-[#8A9884]">{storeOnline ? 'Open until 1:00 AM' : 'New orders are on hold'}</p>
+            <p className="mt-0.5 text-[9px] text-[#8A9884]">Status from your shop profile</p>
           </div>
-          <Toggle
-            checked={storeOnline}
-            onChange={(value) => {
-              setStoreOnline(value)
-              pushToast(
-                value ? 'Store is live again' : 'Store paused',
-                value
-                  ? 'You are now accepting new orders on JTBazar.'
-                  : 'New orders are paused. Existing orders can still be completed.',
-                value ? 'success' : 'warning',
-              )
-            }}
-            label="Accepting new orders"
-            size="sm"
-            tone="cream"
-          />
         </div>
 
         <div className="flex items-center gap-2 rounded-xl px-2 py-1.5">
-          <Avatar name={store.owner} size={32} className="bg-sage-400/20 text-sage-200" />
+          <Avatar name={ownerName} size={32} className="bg-sage-400/20 text-sage-200" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[11px] font-semibold text-cream-50">{store.owner}</p>
-            <p className="text-[9px] text-[#8A9884]">{store.ownerRole} · {store.name}</p>
+            <p className="truncate text-[11px] font-semibold text-cream-50">{ownerName}</p>
+            <p className="text-[9px] text-[#8A9884]">{businessType} · {shopName}</p>
           </div>
           <button
             type="button"
-            aria-label="Sign out (demo)"
-            title="Sign out (demo)"
-            onClick={() => pushToast('Signed out', 'This is a UI prototype — no real session was changed.', 'info')}
+            aria-label="Sign out"
+            title="Sign out"
+            onClick={() => { void signOut() }}
             className="grid h-7 w-7 flex-none place-items-center rounded-full text-[#8A9884] transition hover:bg-white/10 hover:text-cream-50"
           >
             <LogOut size={14} />
           </button>
-        </div>
-
-        <div className="flex items-center justify-between px-2.5 pb-0.5">
-          <span className="inline-flex items-center gap-1.5 text-[8px] font-medium uppercase tracking-[0.13em] text-[#6E7D69]">
-            <FlaskConical size={10} /> Prototype · mock data
-          </span>
-          <Sparkles size={10} className="text-[#6E7D69]" />
         </div>
       </div>
     </aside>
