@@ -415,6 +415,13 @@ export async function uploadVendorProductImage(productId: string, file: File, al
   }
 }
 
+export async function getVendorCaseEvidenceUrl(path: string) {
+  if (!path) return null
+  const { data, error } = await getSupabase().storage.from('marketplace-case-evidence').createSignedUrl(path, 300)
+  if (error) throw new Error(error.message)
+  return data.signedUrl
+}
+
 export async function listVendorProductImages(productId: string) {
   const client = getSupabase()
   const { data, error } = await client.from('product_images')
