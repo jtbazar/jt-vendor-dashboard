@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Store,
   BadgePercent,
   Boxes,
   ChefHat,
@@ -27,6 +28,12 @@ export interface NavSection {
 }
 
 export const navSections: NavSection[] = [
+  {
+    label: 'Marketplace',
+    items: [
+      { label: 'Marketplace dashboard', to: '/marketplace', icon: Store },
+    ],
+  },
   {
     label: 'Workspace',
     items: [
@@ -64,6 +71,7 @@ export const navSections: NavSection[] = [
 export const allNavItems = navSections.flatMap((section) => section.items)
 
 export const pageTitles: Record<string, string> = {
+  '/marketplace': 'Marketplace dashboard',
   '/': 'Overview',
   '/orders': 'Orders',
   '/kitchen': 'Kitchen board',

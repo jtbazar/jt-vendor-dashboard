@@ -1,41 +1,33 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppProvider } from './store'
-import { Layout } from './components/Layout'
-import { OverviewPage } from './pages/Overview'
-import { OrdersPage } from './pages/Orders'
-import { KitchenPage } from './pages/Kitchen'
-import { MenuPage } from './pages/Menu'
-import { PromotionsPage } from './pages/Promotions'
-import { CustomersPage } from './pages/Customers'
-import { ReviewsPage } from './pages/Reviews'
-import { InventoryPage } from './pages/Inventory'
-import { EarningsPage } from './pages/Earnings'
-import { AnalyticsPage } from './pages/Analytics'
-import { SupportPage } from './pages/Support'
-import { SettingsPage } from './pages/Settings'
+import { VendorAuthProvider, useVendorAuth } from './context/VendorAuthContext'
+import { VendorLoginPage } from './pages/VendorLogin'
+import { VendorAuthCallbackPage } from './pages/VendorAuthCallback'
+import { MarketplacePage } from './pages/Marketplace'
+
+function VendorMarketplaceRoute() {
+  const { user, loading, configured, suspensionReason } = useVendorAuth()
+  if (!configured) return <Navigate to="/vendor-login" replace />
+  if (loading) return <main className="min-h-screen grid place-items-center text-sm text-muted">Checking your JTBazar seller account…</main>
+  if (!user) return <Navigate to="/vendor-login" replace />
+  if (suspensionReason) return <main className="min-h-screen grid place-items-center bg-cream-50 px-4 py-12"><section className="w-full max-w-lg rounded-2xl border border-line bg-white p-7"><h1 className="font-display text-2xl font-semibold text-forest">JTBazar account suspended</h1><p className="mt-3 text-sm leading-6 text-muted">{suspensionReason}</p><p className="mt-3 text-sm text-muted">Vendor Center access is disabled while your customer account is suspended. Please contact JTBazar support if you believe this is a mistake.</p><a href="https://www.jt-bazar.com/" className="mt-5 inline-flex rounded-lg bg-forest px-4 py-2 text-sm font-semibold text-white">Back to JTBazar</a></section></main>
+  return <MarketplacePage />
+}
 
 export default function App() {
   return (
-    <AppProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<Layout />}>
-            <Route index element={<OverviewPage />} />
-            <Route path="orders" element={<OrdersPage />} />
-            <Route path="kitchen" element={<KitchenPage />} />
-            <Route path="menu" element={<MenuPage />} />
-            <Route path="promotions" element={<PromotionsPage />} />
-            <Route path="customers" element={<CustomersPage />} />
-            <Route path="reviews" element={<ReviewsPage />} />
-            <Route path="inventory" element={<InventoryPage />} />
-            <Route path="earnings" element={<EarningsPage />} />
-            <Route path="analytics" element={<AnalyticsPage />} />
-            <Route path="support" element={<SupportPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </AppProvider>
+    <VendorAuthProvider>
+      <AppProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/vendor-login" element={<VendorLoginPage />} />
+            <Route path="/auth/callback" element={<VendorAuthCallbackPage />} />
+            <Route path="/marketplace" element={<VendorMarketplaceRoute />} />
+            <Route path="/" element={<Navigate to="/marketplace" replace />} />
+            <Route path="*" element={<Navigate to="/marketplace" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AppProvider>
+    </VendorAuthProvider>
   )
 }

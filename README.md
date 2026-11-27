@@ -1,8 +1,6 @@
-# JTBazar Vendor Center — UI Prototype
+# JTBazar Vendor Center
 
-A standalone vendor dashboard for JTBazar, designed around the restaurant / kitchen
-vendor journey described in the Phase-Wise Vendor Plan. This is a **UI prototype**:
-all data is local mock data and no backend, auth or database is connected.
+A standalone JTBazar Vendor Center. The restaurant / kitchen workspace remains a UI prototype with local mock data; the `/marketplace` route now connects to the existing JTBazar Supabase backend for approved marketplace sellers.
 
 ## Run locally
 
@@ -25,18 +23,27 @@ pnpm preview
 
 | Route | What it covers |
 | --- | --- |
-| `/` | Overview — live KPIs, revenue chart, COD settlement, live orders, kitchen queue, stock and promotions |
-| `/orders` | Order queue — filters, search, order drawer, accepted → preparing → ready lifecycle and COD direction notes |
-| `/kitchen` | Kitchen board — new / accepted / preparing / ready columns with prep timers and handover |
-| `/menu` | Restaurant menu — portion sizes, paid add-ons, modifiers, per-item prep time, availability and margins |
-| `/promotions` | Campaigns and coupons — percentage, fixed, BOGO, multi-buy, bundle and flash-sale flows with item targeting and eligibility |
-| `/customers` | Customer directory — order-related details, lifetime spend, fulfilment preference, latest order and privacy note |
-| `/reviews` | Reputation — rating breakdown, filters and public replies |
-| `/inventory` | Ingredients — par levels, stock status and restock modal |
-| `/earnings` | COD ledger — own-rider/pickup cash with vendor, JTBazar-rider payable, commission due and weekly manual settlements |
-| `/analytics` | Revenue trend, peak hours, fulfilment mix and top items |
-| `/support` | Ticket inbox and conversation thread with new-ticket flow |
-| `/settings` | Business type and modules, shop profile, hours & delivery, Admin-approved drivers, payouts, notifications and team roles |
+| `/vendor-login` | Existing customer email + password followed by six-digit email OTP, or Continue with Google for an existing Google-linked customer account |
+| `/auth/callback` | PKCE Google OAuth callback on the Vendor Center origin |
+| `/marketplace` | Approved-seller-only live marketplace workspace |
+| `/` | Redirects to `/marketplace` |
+
+The restaurant-oriented prototype screens remain in the source tree for later integration, but they are not routed into the live Vendor Center. This prevents mock orders, balances or analytics from being shown as real seller data until their backend integrations are complete.
+
+## Shared JTBazar marketplace integration
+
+The `/marketplace` route is the first live-data integration slice for existing JTBazar marketplace sellers. It uses the shared production project only when the deployment environment is configured with the public publishable/anon key.
+
+- `/vendor-login`: existing customer accounts only. Email/password users verify their password and then enter a six-digit email OTP; Google-linked users can use Continue with Google. No separate vendor registration is created.
+- `/auth/callback`: completes Google OAuth on the Vendor Center origin using PKCE.
+- `/marketplace`: approved seller gate, live listing data, product creation/editing, image gallery, variant images, inventory, paginated/searchable fulfilment orders, customer cases, deletion requests, support and shop profile information.
+- Uses existing vendor RPCs and existing RLS-protected tables/storage. No schema migrations or database DDL are included.
+- Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`; see `.env.example`.
+- Never put a service-role key in this frontend.
+
+Seller applications remain on the existing customer website. The Vendor Center does not provide a second registration form. Restaurant-oriented prototype screens are not routed into the live app until their real backend workflows are implemented and tested.
+
+See [website vendor parity plan](docs/WEBSITE_VENDOR_PARITY.md) for the safety boundary and remaining parity work.
 
 ## Design system
 
@@ -71,6 +78,7 @@ The prototype follows the restaurant vendor rules in
 - Images are loaded from Unsplash and need an internet connection.
 - Payout, commission, COD and settlement screens are illustrative and marked as a
   prototype; no real money movement or persistence is implemented.
-- This project is a separate frontend prototype, matching the plan's recommendation
-  to keep the Customer website and Vendor Center as separate frontends. No Supabase
-  project, auth, migration, Android app or Admin dashboard is connected.
+- This project is a separate frontend, matching the plan's recommendation to keep the Customer website and Vendor Center separate.
+- The marketplace route uses the existing JTBazar Supabase project and existing RLS/RPC surfaces; no migrations or schema changes are included in this repository work.
+- Restaurant prototype routes still use mock data; they are not yet connected to real restaurant orders, menu, settlements or driver operations.
+- No Android app or Admin dashboard is included in this repository.
