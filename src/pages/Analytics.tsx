@@ -221,9 +221,8 @@ export function AnalyticsPage() {
               </div>
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-2 rounded-lg bg-[#FBFAF5] px-3 py-2 text-[9px] text-muted">
-            <Star size={11} className="fill-[#C58B3C] text-[#C58B3C]" />
-            <span><strong className="font-semibold text-ink">{store.rating}</strong> rating from {store.reviewCount.toLocaleString()} reviews</span>
+          <div className="mt-3 rounded-lg bg-[#FBFAF5] px-3 py-2 text-[9px] text-muted">
+            {store.reviewCount > 0 ? <span>Verified shop rating: <strong className="font-semibold text-ink">{store.rating}</strong> from {store.reviewCount.toLocaleString()} reviews</span> : <span>No verified review analytics are available yet.</span>}
           </div>
         </Card>
       </div>
