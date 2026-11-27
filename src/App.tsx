@@ -9,7 +9,7 @@ function VendorAccessLayout() {
   if (!configured) return <Navigate to="/vendor-login" replace />
   if (loading) return <main className="min-h-screen grid place-items-center text-sm text-muted">Checking your JTBazar seller access…</main>
   if (!user) return <Navigate to="/vendor-login" replace />
-  if (!seller || seller.status !== 'approved') return <MarketplacePage />
+  if (!seller || seller.status !== 'approved' || seller.vendor_locked) return <MarketplacePage />
   return <Layout />
 }
 import { MarketplacePage } from './pages/Marketplace'
