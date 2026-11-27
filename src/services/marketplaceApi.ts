@@ -85,6 +85,24 @@ export async function completeVendorGoogleSignIn(code: string, expectedEmail: st
   return data.session
 }
 
+export async function getVendorAccountSuspensionReason(): Promise<string | null> {
+  const client = getSupabase()
+  const { data: { user }, error: authError } = await client.auth.getUser()
+  assertNoError(authError)
+  if (!user) return null
+  const activeAuthBan = Boolean(user.banned_until && Date.parse(user.banned_until) > Date.now())
+  const { data: notices, error } = await client.from('notifications')
+    .select('kind, title, body, created_at').eq('audience', 'customer')
+    .order('created_at', { ascending: false }).limit(30)
+  if (error) throw new Error(error.message)
+  const suspensionState = (notices ?? []).find(notice =>
+    notice.kind === 'account' && ['Account suspended', 'Account restored'].includes(notice.title)
+  )
+  if (suspensionState?.title === 'Account restored') return null
+  return (suspensionState?.title === 'Account suspended' ? String(suspensionState.body ?? '').trim() : '')
+    || (activeAuthBan ? 'Your account is suspended by marketplace administration.' : null)
+}
+
 export async function getSellerProfile(): Promise<SellerProfile | null> {
   const client = getSupabase()
   const { data: { user }, error: authError } = await client.auth.getUser()
