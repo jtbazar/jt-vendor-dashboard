@@ -166,13 +166,13 @@ export function PromotionsPage() {
       <PageHeader
         eyebrow={<><BadgePercent size={12} /> Growth &amp; offers</>}
         title="Fill quiet hours. Reward regulars."
-        description="Run discounts, bundles, BOGO offers, flash sales and coupon codes across your menu. Choose exactly which items are included. JTBazar policy caps and approval rules always apply."
+        description="Promotion and coupon reporting will appear here once the live seller promotion APIs are connected. Demo campaigns and redemption totals have been removed."
         actions={
           <>
-            <Button variant="secondary" onClick={() => setCouponOpen(true)}>
+            <Button variant="secondary" disabled>
               <TicketPercent size={14} /> New coupon
             </Button>
-            <Button variant="primary" onClick={() => setCampaignOpen(true)}>
+            <Button variant="primary" disabled>
               <Plus size={14} /> Create campaign
             </Button>
           </>
