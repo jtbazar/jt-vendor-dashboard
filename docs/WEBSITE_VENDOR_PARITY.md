@@ -27,7 +27,7 @@
 - [x] Added approved-seller status gate.
 - [x] Added live product listing, inventory, vendor order, and customer case reads.
 - [x] Added existing-RPC actions for product visibility, stock changes, and marking orders ready.
-- [x] Added product creation, product-image upload, and existing submission-finalization RPC flow.
+- [x] Added product creation, product-image upload, existing submission-finalization RPC flow, and variant management using the existing variant RPC.
 - [x] Added GitHub Actions typecheck/build validation.
 - [ ] Complete parity for product editing, variants, shop profile editing, support tickets, and all restaurant modules.
 - [ ] Validate against a dedicated staging account and run end-to-end regression tests.
