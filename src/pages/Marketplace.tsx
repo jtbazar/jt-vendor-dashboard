@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { Activity, AlertCircle, Boxes, CheckCircle2, ClipboardList, Eye, EyeOff, Package, RefreshCw, ShieldCheck, Store, Truck, Wallet } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useVendorAuth } from '../context/VendorAuthContext'
-import { createVendorProduct, finalizeVendorProductSubmission, getVendorDashboardData, listVendorCategories, markOrderReady, replyToCase, setProductStock, setProductVisibility, uploadVendorProductImage, type VendorCase, type VendorInventory, type VendorOrderItem, type VendorProduct } from '../services/marketplaceApi'
+import { createVendorProduct, finalizeVendorProductSubmission, getVendorDashboardData, listVendorCategories, markOrderReady, replyToCase, setProductStock as setProductInventory, setProductVisibility, uploadVendorProductImage, type VendorCase, type VendorInventory, type VendorOrderItem, type VendorProduct } from '../services/marketplaceApi'
 
 type Tab = 'overview' | 'listings' | 'inventory' | 'orders' | 'cases' | 'settings'
 const tabs: Array<{ id: Tab; label: string; icon: typeof Activity }> = [
@@ -91,7 +91,7 @@ export function MarketplacePage() {
   async function submitStock(event: FormEvent) {
     event.preventDefault()
     if (!stockTarget) return
-    if (await runAction(() => setProductStock(stockTarget.product_id, Number(stockValue), stockNote, stockTarget.variant_id), 'Inventory updated.')) setStockTarget(null)
+    if (await runAction(() => setProductInventory(stockTarget.product_id, Number(stockValue), stockNote, stockTarget.variant_id), 'Inventory updated.')) setStockTarget(null)
   }
   async function submitNewProduct(event: FormEvent) {
     event.preventDefault()
