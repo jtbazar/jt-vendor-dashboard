@@ -1,5 +1,8 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppProvider } from './store'
+import { VendorAuthProvider } from './context/VendorAuthContext'
+import { VendorLoginPage } from './pages/VendorLogin'
+import { MarketplacePage } from './pages/Marketplace'
 import { Layout } from './components/Layout'
 import { OverviewPage } from './pages/Overview'
 import { OrdersPage } from './pages/Orders'
@@ -16,9 +19,12 @@ import { SettingsPage } from './pages/Settings'
 
 export default function App() {
   return (
+    <VendorAuthProvider>
     <AppProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/vendor-login" element={<VendorLoginPage />} />
+          <Route path="/marketplace" element={<MarketplacePage />} />
           <Route element={<Layout />}>
             <Route index element={<OverviewPage />} />
             <Route path="orders" element={<OrdersPage />} />
@@ -37,5 +43,6 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </AppProvider>
+    </VendorAuthProvider>
   )
 }
