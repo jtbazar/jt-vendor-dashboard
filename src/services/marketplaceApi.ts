@@ -24,7 +24,7 @@ async function compressVendorImage(file: File): Promise<File> {
     bitmap.close()
     const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/webp', 0.84))
     if (!blob || blob.size >= file.size) return file
-    return new File([blob], file.name.replace(/\\.[^.]+$/, '') + '.webp', { type: 'image/webp', lastModified: Date.now() })
+    return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.webp', { type: 'image/webp', lastModified: Date.now() })
   } catch { return file }
 }
 
