@@ -38,6 +38,20 @@ pnpm preview
 | `/support` | Ticket inbox and conversation thread with new-ticket flow |
 | `/settings` | Business type and modules, shop profile, hours & delivery, Admin-approved drivers, payouts, notifications and team roles |
 
+## Shared JTBazar marketplace integration
+
+The `/marketplace` route is the first live-data integration slice for existing JTBazar marketplace sellers. It uses the shared production project only when the deployment environment is configured with the public publishable/anon key.
+
+- `/vendor-login`: existing-account password check followed by the same six-digit email OTP sign-in pattern used by the JTBazar website.
+- `/marketplace`: approved seller gate, live listing data, inventory, fulfilment orders, customer cases, product submission and shop profile information.
+- Uses existing vendor RPCs and existing RLS-protected tables/storage. No schema migrations or database DDL are included.
+- Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`; see `.env.example`.
+- Never put a service-role key in this frontend.
+
+The restaurant-oriented prototype routes remain available while their mock data is progressively replaced by approved backend integrations.
+
+See [website vendor parity plan](docs/WEBSITE_VENDOR_PARITY.md) for the safety boundary and remaining parity work.
+
 ## Design system
 
 - Forest `#243B2A` · cream `#F7F3E9` · sage `#7D9463` · clay `#C0714F`
