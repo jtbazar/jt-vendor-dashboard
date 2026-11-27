@@ -1,5 +1,6 @@
 import {
   BadgePercent,
+  BookOpen,
   Boxes,
   LayoutDashboard,
   LifeBuoy,
@@ -46,6 +47,7 @@ export const navSections: NavSection[] = [
   {
     label: 'Account',
     items: [
+      { label: 'Vendor Guide', to: '/guide', icon: BookOpen },
       { label: 'Support', to: '/support', icon: LifeBuoy },
       { label: 'Settings', to: '/settings', icon: Settings },
     ],
@@ -61,6 +63,7 @@ export const pageTitles: Record<string, string> = {
   '/promotions': 'Promotions',
   '/reviews': 'Reviews',
   '/inventory': 'Inventory',
+  '/guide': 'Vendor Guide',
   '/support': 'Support',
   '/settings': 'Settings',
 }
