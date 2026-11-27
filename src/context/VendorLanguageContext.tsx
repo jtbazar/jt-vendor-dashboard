@@ -54,7 +54,19 @@ export function VendorLanguageProvider({ children }: { children: ReactNode }) {
       }
     }
     scan(document.body)
-    const observer = new MutationObserver(records => records.forEach(record => {\n      record.addedNodes.forEach(node => scan(node))\n      if (record.type === 'characterData' && record.target.nodeType === Node.TEXT_NODE) {\n        const item = record.target as Text\n        const original = textOriginals.get(item)\n        if (original !== undefined && item.nodeValue !== translate(original, language)) {\n          textOriginals.set(item, item.nodeValue || '')\n          applyText(item)\n        }\n      }\n    }))
+    const observer = new MutationObserver(records => {
+      records.forEach(record => {
+        record.addedNodes.forEach(node => scan(node))
+        if (record.type === 'characterData' && record.target.nodeType === Node.TEXT_NODE) {
+          const item = record.target as Text
+          const original = textOriginals.get(item)
+          if (original !== undefined && item.nodeValue !== translate(original, language)) {
+            textOriginals.set(item, item.nodeValue || '')
+            applyText(item)
+          }
+        }
+      })
+    })
     observer.observe(document.body, { childList: true, subtree: true, characterData: true })
     return () => observer.disconnect()
   }, [language])
