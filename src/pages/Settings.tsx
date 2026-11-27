@@ -7,7 +7,7 @@ import {
   updateVendorShopProfile, uploadVendorCnicImage, uploadVendorDocument, uploadVendorShopImage,
 } from '../services/marketplaceApi'
 
-type ShopHours = Record<string, { open: boolean; start: string; end: string }> & { _public_visible?: boolean }
+type ShopHours = { _public_visible?: boolean; [key: string]: any }
 const DAYS = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] as const
 const DEFAULT_HOURS: ShopHours = {
   monday:{open:true,start:'09:00',end:'22:00'},tuesday:{open:true,start:'09:00',end:'22:00'},
@@ -154,6 +154,6 @@ export function SettingsPage() {
       <div className="grid gap-3 sm:grid-cols-2"><label className="text-[10px] font-semibold text-muted">Replace CNIC front (max 10 MB)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setCnicFront(e.target.files?.[0]??null)} className="mt-1 block w-full text-[9px]"/></label><label className="text-[10px] font-semibold text-muted">Replace CNIC back (max 10 MB)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>setCnicBack(e.target.files?.[0]??null)} className="mt-1 block w-full text-[9px]"/></label></div>
     </Card>
     <Card className="p-4 sm:p-5"><div className="mb-3 flex items-center gap-2"><FileText size={16} className="text-sage-700"/><div><h2 className="font-display text-sm font-semibold text-forest">Business information document</h2><p className="text-[9px] text-muted">Optional PDF for marketplace admin review; a business registration certificate is not compulsory.</p></div></div>{documentUrls.verification?<a href={documentUrls.verification} target="_blank" rel="noreferrer" className="mb-3 inline-block text-[10px] text-sage-700 underline">Open saved business PDF</a>:<p className="mb-2 text-[9px] text-muted">No business information PDF saved.</p>}<label className="text-[10px] font-semibold text-muted">Upload / replace PDF (maximum 10 MB)<input type="file" accept="application/pdf,.pdf" onChange={e=>setBusinessPdf(e.target.files?.[0]??null)} className="mt-1 block w-full text-[9px]"/></label>{businessPdf?<p className="mt-1 text-[9px] text-sage-700">Selected: {businessPdf.name}</p>:null}</Card>
-    <div className="flex justify-end"><Button variant="primary" block onClick={()=>void save()} disabled={saving||!seller}>{saving?<LoaderCircle size={14} className="animate-spin"/>:<Save size={14}/>} Save all settings</Button></div>
+    <div className="flex justify-end"><Button variant="primary" onClick={()=>void save()} disabled={saving||!seller}>{saving?<LoaderCircle size={14} className="animate-spin"/>:<Save size={14}/>} Save all settings</Button></div>
   </div>
 }
