@@ -594,6 +594,12 @@ export async function uploadVendorDocument(file: File) {
   return path
 }
 
+export async function removeVendorDocument(path: string) {
+  if (!path) return
+  const { error } = await getSupabase().storage.from('vendor-documents').remove([path])
+  assertNoError(error)
+}
+
 export async function uploadVendorCnicImage(file: File, side: 'cnic-front' | 'cnic-back') {
   if (file.size > 10 * 1024 * 1024) throw new Error('CNIC images must be 10 MB or smaller.')
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('CNIC images must be JPG, PNG or WebP.')
@@ -614,6 +620,7 @@ export async function updateVendorShopProfile(input: {
   shop_lng?: number | null; shop_location_label?: string; show_shop_on_map?: boolean;
   shop_hours?: Record<string, { open: boolean; start: string; end: string }>;
   shop_is_open?: boolean; shop_image_url?: string | null;
+  document_path?: string | null; cnic_front_path?: string | null; cnic_back_path?: string | null;
 }) {
   const client = getSupabase()
   const { data: { user }, error: authError } = await client.auth.getUser()
@@ -631,6 +638,9 @@ export async function updateVendorShopProfile(input: {
     ...(input.shop_hours !== undefined ? { shop_hours: input.shop_hours } : {}),
     ...(input.shop_is_open !== undefined ? { shop_is_open: input.shop_is_open } : {}),
     ...(input.shop_image_url !== undefined ? { shop_image_url: input.shop_image_url } : {}),
+    ...(input.document_path !== undefined ? { document_path: input.document_path } : {}),
+    ...(input.cnic_front_path !== undefined ? { cnic_front_path: input.cnic_front_path } : {}),
+    ...(input.cnic_back_path !== undefined ? { cnic_back_path: input.cnic_back_path } : {}),
     phone: input.phone.trim(),
     current_address: input.current_address.trim(),
     complete_address: input.complete_address.trim(),
