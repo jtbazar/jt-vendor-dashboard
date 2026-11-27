@@ -313,6 +313,63 @@ export async function finalizeVendorProductSubmission(productId: string) {
   return data as VendorProduct
 }
 
+export async function listVendorSupportTickets() {
+  const { data, error } = await getSupabase().from('support_tickets')
+    .select('*').order('created_at', { ascending: false }).limit(100)
+  assertNoError(error)
+  return data ?? []
+}
+
+export async function listVendorSupportMessages(ticketId: string) {
+  const { data, error } = await getSupabase().from('support_ticket_messages')
+    .select('*').eq('ticket_id', ticketId).order('created_at', { ascending: true }).limit(500)
+  assertNoError(error)
+  return data ?? []
+}
+
+export async function createVendorSupportTicket(sellerId: string, subject: string, message: string) {
+  const client = getSupabase()
+  const { data: { user }, error: authError } = await client.auth.getUser()
+  assertNoError(authError)
+  if (!user) throw new Error('Sign in before creating a support ticket.')
+  const { data, error } = await client.from('support_tickets')
+    .insert({ seller_id: sellerId, created_by: user.id, subject: subject.trim(), message: message.trim() })
+    .select('id').single()
+  assertNoError(error)
+  if (!data) throw new Error('Support ticket could not be confirmed.')
+  return data.id
+}
+
+export async function sendVendorSupportMessage(ticketId: string, message: string) {
+  const client = getSupabase()
+  const { data: { user }, error: authError } = await client.auth.getUser()
+  assertNoError(authError)
+  if (!user) throw new Error('Sign in before replying to support.')
+  const { data, error } = await client.from('support_ticket_messages')
+    .insert({ ticket_id: ticketId, sender_id: user.id, sender_role: 'seller', message: message.trim() })
+    .select('*').single()
+  assertNoError(error)
+  if (!data) throw new Error('Your message could not be confirmed.')
+  return data
+}
+
+export async function updateVendorShopProfile(input: { shop_name: string; description: string; phone: string; current_address: string; complete_address: string }) {
+  const client = getSupabase()
+  const { data: { user }, error: authError } = await client.auth.getUser()
+  assertNoError(authError)
+  if (!user || !user.email_confirmed_at) throw new Error('Verify your JTBazar account email before updating seller details.')
+  const { data, error } = await client.from('seller_profiles').update({
+    shop_name: input.shop_name.trim(),
+    description: input.description.trim(),
+    phone: input.phone.trim(),
+    current_address: input.current_address.trim(),
+    complete_address: input.complete_address.trim(),
+  }).eq('user_id', user.id).select('*').single()
+  assertNoError(error)
+  if (!data) throw new Error('The shop profile was not updated.')
+  return data
+}
+
 export async function getVendorDashboardData() {
   const [profile, products, inventory, orders, cases] = await Promise.all([
     getSellerProfile(),
