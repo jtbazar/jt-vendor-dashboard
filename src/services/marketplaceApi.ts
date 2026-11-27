@@ -372,54 +372,22 @@ export async function uploadVendorProductImage(productId: string, file: File, al
   })
   assertNoError(uploadError)
   const { data: existing, error: listError } = await client.from('product_images')
-    .select('id, image_url, storage_path, sort_order').eq('product_id', productId)
-    .order('sort_order', { ascending: true }).limit(100)
+    .select('sort_order').eq('product_id', productId).order('sort_order', { ascending: true }).limit(100)
   if (listError) {
     await client.storage.from('product-images').remove([path])
     throw new Error(listError.message)
   }
-  const hasPublicImage = (existing ?? []).some((image: any) =>
-    Boolean(image.image_url) || Boolean(image.storage_path && (
-      (image.storage_path.startsWith(`${productId}/`) && image.storage_path.split('/').filter(Boolean).length >= 3)
-      || image.storage_path.split('/').filter(Boolean)[1] === productId
-    ))
-  )
-  if (!hasPublicImage) {
-    for (const image of [...(existing ?? [])].reverse()) {
-      const { error } = await client.from('product_images').update({ sort_order: Number(image.sort_order) + 1 })
-        .eq('id', image.id).eq('product_id', productId)
-      if (error) {
-        await client.storage.from('product-images').remove([path])
-        throw new Error(error.message)
-      }
-    }
-  }
-  const nextSort = hasPublicImage
-    ? ((existing ?? []).length ? Math.max(...(existing ?? []).map((image: any) => Number(image.sort_order))) : -1) + 1
+  const nextSort = (existing ?? []).length
+    ? Math.max(...(existing ?? []).map(image => Number(image.sort_order))) + 1
     : 0
-  const { data: inserted, error: insertError } = await client.from('product_images').insert({
+  const { error: insertError } = await client.from('product_images').insert({
     product_id: productId, storage_path: path, alt_text: altText.slice(0, 200),
-    sort_order: nextSort, is_primary: !hasPublicImage,
-  }).select('id').single()
-  if (insertError || !inserted) {
+    sort_order: nextSort, is_primary: (existing ?? []).length === 0,
+  })
+  if (insertError) {
     await client.storage.from('product-images').remove([path])
-    throw new Error(insertError?.message ?? 'The uploaded image could not be attached to this product.')
+    throw new Error(insertError.message)
   }
-  if (!hasPublicImage) {
-    const { error: clearError } = await client.from('product_images').update({ is_primary: false })
-      .eq('product_id', productId).neq('id', inserted.id)
-    assertNoError(clearError)
-    const { error: primaryError } = await client.from('product_images').update({ is_primary: true })
-      .eq('id', inserted.id).eq('product_id', productId)
-    assertNoError(primaryError)
-  }
-}
-
-export async function getVendorCaseEvidenceUrl(path: string) {
-  if (!path) return null
-  const { data, error } = await getSupabase().storage.from('complaint-evidence').createSignedUrl(path, 600)
-  if (error) throw new Error(error.message)
-  return data.signedUrl
 }
 
 export async function listVendorProductImages(productId: string) {
@@ -447,29 +415,6 @@ export async function uploadVendorVariantImage(productId: string, file: File) {
   const { error } = await client.storage.from('product-images').upload(path, optimizedFile, { cacheControl: '31536000', upsert: false, contentType: optimizedFile.type })
   assertNoError(error)
   return client.storage.from('product-images').getPublicUrl(path).data.publicUrl
-}
-
-export async function setVendorPrimaryProductImage(productId: string, imageId: string) {
-  const client = getSupabase()
-  const { data: images, error: listError } = await client.from('product_images')
-    .select('id, sort_order').eq('product_id', productId).order('sort_order', { ascending: true }).limit(100)
-  assertNoError(listError)
-  const target = (images ?? []).find(image => image.id === imageId)
-  if (!target) throw new Error('The selected product image could not be found.')
-  const first = (images ?? [])[0]
-  if (first && first.id !== target.id) {
-    const temporaryOrder = Math.max(...(images ?? []).map(image => Number(image.sort_order))) + 1
-    const { error: tempError } = await client.from('product_images').update({ sort_order: temporaryOrder }).eq('id', target.id).eq('product_id', productId)
-    assertNoError(tempError)
-    const { error: firstError } = await client.from('product_images').update({ sort_order: target.sort_order }).eq('id', first.id).eq('product_id', productId)
-    assertNoError(firstError)
-    const { error: targetError } = await client.from('product_images').update({ sort_order: first.sort_order }).eq('id', target.id).eq('product_id', productId)
-    assertNoError(targetError)
-  }
-  const { error: clearError } = await client.from('product_images').update({ is_primary: false }).eq('product_id', productId)
-  assertNoError(clearError)
-  const { error } = await client.from('product_images').update({ is_primary: true }).eq('id', imageId).eq('product_id', productId)
-  assertNoError(error)
 }
 
 
