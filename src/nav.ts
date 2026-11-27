@@ -75,7 +75,7 @@ export const pageTitles: Record<string, string> = {
   '/': 'Overview',
   '/orders': 'Orders',
   '/kitchen': 'Kitchen board',
-  '/menu': 'Menu',
+  '/menu': 'Products',
   '/promotions': 'Promotions',
   '/customers': 'Customers',
   '/reviews': 'Reviews',
