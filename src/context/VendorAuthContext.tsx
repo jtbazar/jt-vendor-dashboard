@@ -11,6 +11,7 @@ export interface VendorAuthValue {
   loading: boolean
   configured: boolean
   refreshSeller: () => Promise<void>
+  setSellerProfile: (profile: Record<string, any>) => void
   signOut: () => Promise<void>
 }
 
@@ -22,15 +23,23 @@ export function VendorAuthProvider({ children }: { children: ReactNode }) {
   const [suspensionReason, setSuspensionReason] = useState<string | null>(null)
   const [loading, setLoading] = useState(isSupabaseConfigured)
 
-  const refreshSeller = useCallback(async () => {
+  const clearSeller = useCallback(() => {
+    setSeller(null)
+    setSuspensionReason(null)
+  }, [])
+
+  /**
+   * Load the seller profile once per signed-in user. `refreshSeller` is still
+   * available for settings saves, but it no longer re-reads the auth session.
+   */
+  const refreshSeller = useCallback(async (authUser?: { id: string; banned_until?: string | null } | null) => {
     if (!supabase) {
-      setSeller(null)
+      clearSeller()
       return
     }
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) {
-      setSeller(null)
-      setSuspensionReason(null)
+    const user = authUser ?? (await supabase.auth.getUser()).data.user
+    if (!user) {
+      clearSeller()
       return
     }
     const { data, error } = await supabase
@@ -39,10 +48,10 @@ export function VendorAuthProvider({ children }: { children: ReactNode }) {
       .eq('user_id', user.id)
       .maybeSingle()
     if (error) throw new Error(error.message)
-    const reason = await getVendorAccountSuspensionReason()
-    setSeller(data as Record<string, any> | null)
+    const reason = await getVendorAccountSuspensionReason(user)
+    setSeller((data as Record<string, any> | null) ?? null)
     setSuspensionReason(reason)
-  }, [])
+  }, [clearSeller])
 
   useEffect(() => {
     if (!supabase) {
@@ -50,39 +59,78 @@ export function VendorAuthProvider({ children }: { children: ReactNode }) {
       return
     }
     let active = true
-    let receivedAuthEvent = false
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    let loadedUserId: string | null = null
+
+    const syncSeller = async (nextSession: Session | null, force = false) => {
       if (!active) return
-      receivedAuthEvent = true
+      const nextUserId = nextSession?.user?.id ?? null
       setSession(nextSession)
-      if (!nextSession?.user) {
-        setSeller(null)
-        setSuspensionReason(null)
+      if (!nextUserId || !nextSession) {
+        loadedUserId = null
+        clearSeller()
         setLoading(false)
         return
       }
+      // Token refresh and repeated SIGNED_IN events must not refetch the profile.
+      if (!force && loadedUserId === nextUserId) {
+        setLoading(false)
+        return
+      }
+      loadedUserId = nextUserId
       setLoading(true)
-      queueMicrotask(() => {
-        void refreshSeller().catch(() => { setSeller(null); setSuspensionReason(null) }).finally(() => {
-          if (active) setLoading(false)
-        })
-      })
-    })
-    void supabase.auth.getSession().then(async ({ data, error }) => {
-      if (!active) return
-      if (!receivedAuthEvent) {
-        setSession(error ? null : data.session)
-        if (data.session?.user) {
-          try { await refreshSeller() } catch { setSeller(null); setSuspensionReason(null) }
-        }
+      try {
+        await refreshSeller(nextSession.user)
+      } catch {
+        if (active) clearSeller()
+      } finally {
         if (active) setLoading(false)
       }
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!active) return
+      // Supabase refreshes tokens silently; the user and seller data are unchanged.
+      if (event === 'TOKEN_REFRESHED') {
+        setSession(nextSession)
+        return
+      }
+      if (event === 'INITIAL_SESSION') return
+      if (event === 'SIGNED_OUT') {
+        void syncSeller(null)
+        return
+      }
+      void syncSeller(nextSession)
     })
+
+    void (async () => {
+      const { data, error } = await supabase.auth.getSession()
+      if (!active) return
+      await syncSeller(error ? null : data.session)
+    })()
+
     return () => {
       active = false
       subscription.unsubscribe()
     }
-  }, [refreshSeller])
+  }, [clearSeller, refreshSeller])
+
+  const refreshSellerForCurrentUser = useCallback(async () => {
+    const authUser = session?.user ?? (supabase ? (await supabase.auth.getUser()).data.user : null)
+    if (!authUser) {
+      clearSeller()
+      return
+    }
+    await refreshSeller(authUser)
+  }, [session?.user, refreshSeller, clearSeller])
+
+  const setSellerProfile = useCallback((profile: Record<string, any>) => {
+    setSeller(profile)
+  }, [])
+
+  const signOut = useCallback(async () => {
+    const { error } = await getSupabase().auth.signOut()
+    if (error) throw new Error(error.message)
+  }, [])
 
   const value = useMemo<VendorAuthValue>(() => ({
     user: session?.user ?? null,
@@ -91,12 +139,10 @@ export function VendorAuthProvider({ children }: { children: ReactNode }) {
     suspensionReason,
     loading,
     configured: isSupabaseConfigured,
-    refreshSeller,
-    signOut: async () => {
-      const { error } = await getSupabase().auth.signOut()
-      if (error) throw new Error(error.message)
-    },
-  }), [session, seller, suspensionReason, loading, refreshSeller])
+    refreshSeller: refreshSellerForCurrentUser,
+    setSellerProfile,
+    signOut,
+  }), [session, seller, suspensionReason, loading, refreshSellerForCurrentUser, setSellerProfile, signOut])
 
   return <VendorAuthContext.Provider value={value}>{children}</VendorAuthContext.Provider>
 }

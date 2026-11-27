@@ -1,8 +1,7 @@
-import { useEffect, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { useEffect, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { CheckCircle2, Info, Star, TriangleAlert, UtensilsCrossed, X } from 'lucide-react'
-import { cx, initials } from '../utils'
-import type { OrderStatus } from '../data/mock'
+import { CheckCircle2, Info, TriangleAlert, X } from 'lucide-react'
+import { cx } from '../utils'
 
 /* ------------------------------------------------------------------ */
 /* Buttons                                                             */
@@ -118,170 +117,6 @@ export function Badge({
   )
 }
 
-const orderStatusMeta: Record<
-  OrderStatus,
-  { label: string; tone: BadgeTone; dot: string }
-> = {
-  new: { label: 'New', tone: 'clay', dot: 'bg-clay' },
-  accepted: { label: 'Accepted', tone: 'forest', dot: 'bg-forest' },
-  preparing: { label: 'Preparing', tone: 'amber', dot: 'bg-[#C08A2A]' },
-  ready: { label: 'Ready', tone: 'sage', dot: 'bg-sage-600' },
-  completed: { label: 'Completed', tone: 'neutral', dot: 'bg-[#98A091]' },
-  cancelled: { label: 'Cancelled', tone: 'danger', dot: 'bg-danger' },
-}
-
-export function OrderStatusBadge({ status }: { status: OrderStatus }) {
-  const meta = orderStatusMeta[status]
-  return (
-    <Badge tone={meta.tone}>
-      <span className={cx('h-1.5 w-1.5 rounded-full', meta.dot)} />
-      {meta.label}
-    </Badge>
-  )
-}
-
-export function LiveBadge({ label = 'Live' }: { label?: string }) {
-  return (
-    <Badge tone="sage">
-      <span className="relative flex h-1.5 w-1.5">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sage-600 opacity-60" />
-        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-sage-600" />
-      </span>
-      {label}
-    </Badge>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-/* Stars                                                               */
-/* ------------------------------------------------------------------ */
-
-export function Stars({
-  rating,
-  size = 13,
-  className,
-}: {
-  rating: number
-  size?: number
-  className?: string
-}) {
-  return (
-    <span className={cx('inline-flex items-center gap-0.5', className)} aria-label={`${rating} out of 5 stars`}>
-      {[1, 2, 3, 4, 5].map((star) => (
-        <Star
-          key={star}
-          size={size}
-          strokeWidth={1.6}
-          className={star <= Math.round(rating) ? 'fill-[#C58B3C] text-[#C58B3C]' : 'fill-transparent text-[#D8D1C0]'}
-        />
-      ))}
-    </span>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-/* Toggle                                                              */
-/* ------------------------------------------------------------------ */
-
-export function Toggle({
-  checked,
-  onChange,
-  label,
-  size = 'md',
-  tone = 'sage',
-}: {
-  checked: boolean
-  onChange: (value: boolean) => void
-  label: string
-  size?: 'sm' | 'md'
-  tone?: 'sage' | 'cream'
-}) {
-  const track = size === 'sm' ? 'h-5 w-9' : 'h-6 w-11'
-  const knob = size === 'sm' ? 'h-3.5 w-3.5' : 'h-[18px] w-[18px]'
-  const shift = size === 'sm' ? 'translate-x-4' : 'translate-x-5'
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      onClick={() => onChange(!checked)}
-      className={cx(
-        'relative inline-flex flex-none items-center rounded-full border border-transparent p-0.5 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-600 focus-visible:ring-offset-2',
-        track,
-        checked ? (tone === 'cream' ? 'bg-sage-400' : 'bg-forest') : 'bg-[#D8D4C8]',
-      )}
-    >
-      <span
-        className={cx(
-          'pointer-events-none inline-block rounded-full bg-white shadow-sm transition-transform duration-200',
-          knob,
-          checked ? shift : 'translate-x-0',
-        )}
-      />
-    </button>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-/* Avatar                                                              */
-/* ------------------------------------------------------------------ */
-
-const avatarTones = [
-  'bg-[#E7EEDD] text-[#4A653A]',
-  'bg-[#F6E7DE] text-[#9A5337]',
-  'bg-[#E8E9E3] text-[#5B6557]',
-  'bg-[#EFE9D8] text-[#7A642E]',
-]
-
-export function Avatar({
-  name,
-  size = 36,
-  className,
-}: {
-  name: string
-  size?: number
-  className?: string
-}) {
-  const tone = avatarTones[name.charCodeAt(0) % avatarTones.length]
-  return (
-    <span
-      className={cx(
-        'inline-grid flex-none place-items-center rounded-full font-semibold tracking-wide',
-        tone,
-        className,
-      )}
-      style={{ width: size, height: size, fontSize: Math.max(10, size * 0.32) }}
-      aria-hidden="true"
-    >
-      {initials(name)}
-    </span>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-/* Progress                                                            */
-/* ------------------------------------------------------------------ */
-
-export function Progress({
-  value,
-  className,
-  barClassName,
-}: {
-  value: number
-  className?: string
-  barClassName?: string
-}) {
-  return (
-    <div className={cx('h-1.5 w-full overflow-hidden rounded-full bg-[#ECE8DD]', className)}>
-      <div
-        className={cx('h-full rounded-full bg-sage-600 transition-all duration-500', barClassName)}
-        style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
-      />
-    </div>
-  )
-}
-
 /* ------------------------------------------------------------------ */
 /* Page header                                                         */
 /* ------------------------------------------------------------------ */
@@ -306,7 +141,7 @@ export function PageHeader({
         </h1>
         {description ? <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-muted">{description}</p> : null}
       </div>
-      {actions ? <div className="flex flex-none flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">{actions}</div> : null}
     </header>
   )
 }
@@ -326,28 +161,6 @@ export function Card({
     <section className={cx('rounded-2xl border border-line bg-white shadow-card', className)}>
       {children}
     </section>
-  )
-}
-
-export function CardHeader({
-  title,
-  subtitle,
-  action,
-  className,
-}: {
-  title: ReactNode
-  subtitle?: ReactNode
-  action?: ReactNode
-  className?: string
-}) {
-  return (
-    <div className={cx('flex flex-wrap items-start justify-between gap-3 px-5 pb-4 pt-5', className)}>
-      <div className="min-w-0">
-        <h2 className="font-display text-[15px] font-semibold tracking-[-0.02em] text-ink">{title}</h2>
-        {subtitle ? <p className="mt-0.5 text-[11px] leading-relaxed text-muted">{subtitle}</p> : null}
-      </div>
-      {action ? <div className="flex flex-none items-center gap-2">{action}</div> : null}
-    </div>
   )
 }
 
@@ -429,68 +242,6 @@ export function Modal({
 }
 
 /* ------------------------------------------------------------------ */
-/* Drawer                                                              */
-/* ------------------------------------------------------------------ */
-
-export function Drawer({
-  open,
-  onClose,
-  title,
-  subtitle,
-  children,
-  footer,
-}: {
-  open: boolean
-  onClose: () => void
-  title: ReactNode
-  subtitle?: ReactNode
-  children: ReactNode
-  footer?: ReactNode
-}) {
-  useEffect(() => {
-    if (!open) return
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    const previous = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = previous
-    }
-  }, [open, onClose])
-
-  if (!open) return null
-
-  return createPortal(
-    <div className="fixed inset-0 z-[80] flex justify-end bg-[#121D16]/45 backdrop-blur-[2px]" role="presentation" onMouseDown={(event) => {
-      if (event.target === event.currentTarget) onClose()
-    }}>
-      <aside
-        role="dialog"
-        aria-modal="true"
-        aria-label={typeof title === 'string' ? title : 'Details'}
-        className="animate-slideIn flex h-full w-full max-w-[480px] flex-col border-l border-white/30 bg-cream-50 shadow-drawer"
-      >
-        <header className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
-          <div className="min-w-0">
-            <h2 className="font-display text-lg font-semibold tracking-[-0.03em] text-forest">{title}</h2>
-            {subtitle ? <div className="mt-1 text-xs text-muted">{subtitle}</div> : null}
-          </div>
-          <IconButton label="Close panel" onClick={onClose} className="-mr-1 -mt-1">
-            <X size={17} />
-          </IconButton>
-        </header>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">{children}</div>
-        {footer ? <footer className="border-t border-line bg-white/70 px-5 py-3.5">{footer}</footer> : null}
-      </aside>
-    </div>,
-    document.body,
-  )
-}
-
-/* ------------------------------------------------------------------ */
 /* Form field                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -514,46 +265,6 @@ export function Field({
       {children}
       {hint ? <span className="text-[10px] leading-relaxed text-muted">{hint}</span> : null}
     </label>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-/* Food image with graceful fallback                                   */
-/* ------------------------------------------------------------------ */
-
-export function FoodImage({
-  src,
-  alt,
-  className,
-  imgClassName,
-}: {
-  src: string
-  alt: string
-  className?: string
-  imgClassName?: string
-}) {
-  const [failed, setFailed] = useState(false)
-
-  useEffect(() => setFailed(false), [src])
-
-  return (
-    <div className={cx('relative overflow-hidden bg-[#EDE9DD]', className)}>
-      {failed ? (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-[radial-gradient(circle_at_30%_20%,#E9EEDF,#DDE5D2)] text-sage-600">
-          <UtensilsCrossed size={20} strokeWidth={1.5} />
-          <span className="px-2 text-center text-[9px] font-medium">{alt}</span>
-        </div>
-      ) : (
-        <img
-          src={src}
-          alt={alt}
-          loading="lazy"
-          referrerPolicy="no-referrer"
-          onError={() => setFailed(true)}
-          className={cx('h-full w-full object-cover', imgClassName)}
-        />
-      )}
-    </div>
   )
 }
 

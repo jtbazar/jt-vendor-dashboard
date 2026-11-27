@@ -1,18 +1,64 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { ArrowRight, LockKeyhole, Mail, ShieldCheck } from 'lucide-react'
+import { useEffect, useRef, useState, type ClipboardEvent, type FormEvent } from 'react'
+import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Info,
+  LockKeyhole,
+  Mail,
+  ShieldCheck,
+} from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { useVendorAuth } from '../context/VendorAuthContext'
 import { sendVendorLoginOtp, startVendorGoogleSignIn, verifyVendorLoginOtp, verifyVendorPassword } from '../services/marketplaceApi'
+import { cx } from '../utils'
+
+const OTP_LENGTH = 6
+type AuthStatus = 'ready' | 'loading' | 'success' | 'error'
+
+function GoogleIcon({ size = 19 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.15Z" />
+      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.15C3.27 21.36 7.35 24 12 24Z" />
+      <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.26C.46 8.16 0 9.94 0 12s.46 3.84 1.26 5.42l4.02-3.15Z" />
+      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.35 0 3.27 2.64 1.26 6.58l4.02 3.15c.95-2.83 3.6-4.98 6.72-4.98Z" />
+    </svg>
+  )
+}
+
+function StatusMessage({ status, message }: { status: AuthStatus; message: string }) {
+  if (status === 'loading') {
+    return <p className="mb-4 flex items-start gap-2 rounded-xl border border-line bg-cream-50 px-3 py-2.5 text-[11px] leading-relaxed text-[#53584E]" role="status" aria-live="polite"><Info size={15} className="mt-0.5 flex-none" />Connecting securely…</p>
+  }
+  if (status === 'success') {
+    return <p className="mb-4 flex items-start gap-2 rounded-xl border border-sage-200 bg-sage-50 px-3 py-2.5 text-[11px] leading-relaxed text-sage-800" role="status" aria-live="polite"><CheckCircle2 size={15} className="mt-0.5 flex-none" />{message}</p>
+  }
+  if (status === 'error') {
+    return <p className="mb-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-[11px] leading-relaxed text-red-800" role="alert"><AlertCircle size={15} className="mt-0.5 flex-none" />{message}</p>
+  }
+  return null
+}
 
 export function VendorLoginPage() {
   const navigate = useNavigate()
+  const { configured } = useVendorAuth()
   const [step, setStep] = useState<'password' | 'otp'>('password')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [otp, setOtp] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''))
+  const [status, setStatus] = useState<AuthStatus>('ready')
+  const [message, setMessage] = useState('')
   const [resendSeconds, setResendSeconds] = useState(0)
+  const inputRefs = useRef<Array<HTMLInputElement | null>>([])
+  const verifyingRef = useRef(false)
+
+  const busy = status === 'loading'
+  const code = digits.join('')
 
   useEffect(() => {
     if (resendSeconds <= 0) return
@@ -20,83 +66,249 @@ export function VendorLoginPage() {
     return () => window.clearTimeout(timer)
   }, [resendSeconds])
 
+  useEffect(() => {
+    if (step === 'otp') inputRefs.current[0]?.focus()
+  }, [step])
+
   async function submitPassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setBusy(true); setError(''); setNotice('')
+    setStatus('loading')
+    setMessage('')
     try {
       const result = await verifyVendorPassword(email, password)
       if (result.error) throw new Error(result.error.message)
       const sent = await sendVendorLoginOtp(email)
       if (sent.error) throw new Error(sent.error.message)
       setStep('otp')
+      setDigits(Array(OTP_LENGTH).fill(''))
       setResendSeconds(60)
-      setNotice('A 6-digit verification code has been sent to your email.')
+      setStatus('success')
+      setMessage('A six-digit verification code has been sent to your email.')
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Sign in could not be completed.')
-    } finally { setBusy(false) }
+      setStatus('error')
+      setMessage(cause instanceof Error ? cause.message : 'Sign in could not be completed.')
+    }
   }
 
   async function submitGoogle() {
-    setBusy(true); setError(''); setNotice('')
-    try { await startVendorGoogleSignIn(email) }
-    catch (cause) { setError(cause instanceof Error ? cause.message : 'Google sign-in could not be started.') }
-    finally { setBusy(false) }
+    setStatus('loading')
+    setMessage('')
+    try {
+      await startVendorGoogleSignIn(email)
+    } catch (cause) {
+      setStatus('error')
+      setMessage(cause instanceof Error ? cause.message : 'Google sign-in could not be started.')
+    }
   }
 
-  async function submitOtp(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!/^\d{6}$/.test(otp)) { setError('Enter the 6-digit code from your email.'); return }
-    setBusy(true); setError(''); setNotice('')
+  async function verifyCode(value: string) {
+    if (value.length !== OTP_LENGTH || verifyingRef.current || busy) return
+    verifyingRef.current = true
+    setStatus('loading')
+    setMessage('')
     try {
-      const result = await verifyVendorLoginOtp(email, otp)
+      const result = await verifyVendorLoginOtp(email, value)
       if (result.error) throw new Error(result.error.message)
-      navigate('/marketplace', { replace: true })
+      navigate('/', { replace: true })
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'The verification code could not be confirmed.')
-    } finally { setBusy(false) }
+      setStatus('error')
+      setMessage(cause instanceof Error ? cause.message : 'The verification code could not be confirmed.')
+      setDigits(Array(OTP_LENGTH).fill(''))
+      inputRefs.current[0]?.focus()
+    } finally {
+      verifyingRef.current = false
+    }
+  }
+
+  function updateDigit(index: number, rawValue: string) {
+    const value = rawValue.replace(/\D/g, '')
+    setStatus('ready')
+    setMessage('')
+    if (value.length > 1) {
+      const pasted = value.slice(0, OTP_LENGTH).split('')
+      const next = Array(OTP_LENGTH).fill('').map((_, position) => pasted[position] ?? '')
+      setDigits(next)
+      if (pasted.length === OTP_LENGTH) void verifyCode(next.join(''))
+      else inputRefs.current[Math.min(pasted.length, OTP_LENGTH - 1)]?.focus()
+      return
+    }
+    if (!value) {
+      setDigits(current => current.map((digit, position) => position === index ? '' : digit))
+      return
+    }
+    const next = [...digits]
+    next[index] = value.slice(-1)
+    setDigits(next)
+    if (index < OTP_LENGTH - 1) inputRefs.current[index + 1]?.focus()
+    if (next.join('').length === OTP_LENGTH) void verifyCode(next.join(''))
+  }
+
+  function pasteCode(event: ClipboardEvent<HTMLInputElement>) {
+    event.preventDefault()
+    const pasted = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LENGTH)
+    if (!pasted) return
+    const next = Array(OTP_LENGTH).fill('').map((_, index) => pasted[index] ?? '')
+    setDigits(next)
+    setStatus('ready')
+    setMessage('')
+    if (pasted.length === OTP_LENGTH) void verifyCode(pasted)
+    else inputRefs.current[Math.min(pasted.length, OTP_LENGTH - 1)]?.focus()
   }
 
   async function resendOtp() {
-    setBusy(true); setError(''); setNotice('')
+    if (resendSeconds > 0 || busy) return
+    setStatus('loading')
+    setMessage('')
     try {
       const result = await sendVendorLoginOtp(email)
       if (result.error) throw new Error(result.error.message)
       setResendSeconds(60)
-      setNotice('A new verification code has been sent.')
+      setStatus('success')
+      setMessage('A new verification code has been sent. Please check your inbox.')
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'The code could not be resent.')
-    } finally { setBusy(false) }
+      setStatus('error')
+      setMessage(cause instanceof Error ? cause.message : 'The code could not be resent.')
+    }
   }
 
-  return <main className="min-h-screen bg-cream-50 px-4 py-12 text-ink">
-    <section className="mx-auto w-full max-w-md rounded-3xl border border-line bg-white p-7 shadow-soft">
-      <div className="mb-7 flex items-center gap-3">
-        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-forest text-cream-50"><ShieldCheck size={23}/></span>
-        <div><p className="font-display text-xl font-semibold text-forest">JTBazar</p><p className="text-xs text-muted">Vendor Center secure access</p></div>
+  if (!configured) {
+    return (
+      <main className="min-h-screen grid place-items-center bg-cream-50 px-4 py-12 text-ink">
+        <section className="w-full max-w-md rounded-2xl border border-line bg-white p-7">
+          <h1 className="font-display text-xl font-semibold text-forest">Connect Supabase</h1>
+          <p className="mt-3 text-sm leading-6 text-muted">Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in the Vendor Center environment before signing in.</p>
+        </section>
+      </main>
+    )
+  }
+
+  return (
+    <main className="min-h-screen bg-cream-100 px-4 py-8 text-ink sm:px-6 sm:py-12">
+      <div className="mx-auto w-full max-w-[580px]">
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-forest text-cream-50"><ShieldCheck size={19} /></span>
+            <div>
+              <p className="font-display text-lg font-semibold leading-none tracking-[-0.04em] text-forest">JTBazar<span className="text-sage-500">.</span></p>
+              <p className="mt-1 text-[8.5px] font-semibold uppercase tracking-[0.16em] text-muted">Vendor Center</p>
+            </div>
+          </div>
+          <a href="https://www.jt-bazar.com/" className="text-[11px] font-semibold text-sage-700 hover:text-forest">Main website</a>
+        </div>
+
+        <section className="rounded-2xl border border-line bg-white p-6 shadow-soft sm:p-9">
+          <header className="mb-6">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-clay">{step === 'password' ? 'Vendor access' : 'Account security'}</span>
+            <h1 className="mt-2 font-display text-[clamp(1.9rem,5vw,2.6rem)] font-semibold leading-[1.1] tracking-[-0.045em] text-forest">
+              {step === 'password' ? 'Sign in to Vendor Center' : 'Verify your sign-in'}
+            </h1>
+            <p className="mt-2 text-[13px] leading-relaxed text-muted">
+              {step === 'password'
+                ? 'Use the JTBazar account linked to your approved seller profile. The six-digit email code keeps vendor access secure.'
+                : 'Enter the six-digit code sent to your JTBazar email address to finish signing in securely.'}
+            </p>
+          </header>
+
+          <StatusMessage status={status} message={message} />
+
+          {step === 'password' ? (
+            <div className="grid gap-4">
+              <label className="grid gap-1.5">
+                <span className="flex items-center justify-between gap-2 text-[12px] font-semibold text-ink">
+                  Email <span className="text-[10px] font-normal text-muted">Registered JTBazar account</span>
+                </span>
+                <span className="flex h-12 items-center gap-2 rounded-xl border border-line bg-white px-3 focus-within:border-sage-600 focus-within:ring-2 focus-within:ring-sage-200">
+                  <Mail size={16} className="flex-none text-muted" />
+                  <input className="h-full w-full min-w-0 bg-transparent text-sm outline-none" type="email" autoComplete="email" required value={email} onChange={event => { setEmail(event.target.value.trim()); setStatus('ready'); setMessage('') }} placeholder="you@example.com" />
+                </span>
+              </label>
+
+              <button type="button" disabled={busy || !email.trim()} onClick={() => void submitGoogle()} className="flex h-12 items-center justify-center gap-2.5 rounded-xl border border-line bg-white px-4 text-[13px] font-semibold text-ink transition hover:bg-cream-50 disabled:opacity-50">
+                <GoogleIcon /> Continue with Google
+              </button>
+
+              <div className="flex items-center gap-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted" role="separator">
+                <span className="h-px flex-1 bg-line" /> or use email + password <span className="h-px flex-1 bg-line" />
+              </div>
+
+              <form className="grid gap-4" onSubmit={submitPassword}>
+                <label className="grid gap-1.5">
+                  <span className="flex items-center justify-between gap-2 text-[12px] font-semibold text-ink">
+                    Password <span className="text-[10px] font-normal text-muted">Required</span>
+                  </span>
+                  <span className="flex h-12 items-center gap-2 rounded-xl border border-line bg-white px-3 focus-within:border-sage-600 focus-within:ring-2 focus-within:ring-sage-200">
+                    <LockKeyhole size={16} className="flex-none text-muted" />
+                    <input className="h-full w-full min-w-0 bg-transparent text-sm outline-none" type={showPassword ? 'text' : 'password'} autoComplete="current-password" required value={password} onChange={event => { setPassword(event.target.value); setStatus('ready'); setMessage('') }} placeholder="Enter your password" />
+                    <button type="button" onClick={() => setShowPassword(value => !value)} className="flex flex-none items-center gap-1 text-[10px] font-semibold text-sage-700" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                      {showPassword ? <EyeOff size={14} /> : <Eye size={14} />} {showPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </span>
+                </label>
+                <button type="submit" disabled={busy || !email.trim() || !password} className="flex h-12 items-center justify-center gap-2 rounded-xl bg-forest px-4 text-[13px] font-semibold text-white transition hover:bg-forest-600 disabled:opacity-50">
+                  {busy ? 'Checking…' : 'Continue securely'} <ArrowRight size={16} />
+                </button>
+                <a href="https://www.jt-bazar.com/forgot-password" className="justify-self-end text-[11px] font-semibold text-clay hover:text-forest">Forgot password?</a>
+              </form>
+            </div>
+          ) : (
+            <form className="grid gap-4" onSubmit={event => { event.preventDefault(); void verifyCode(code) }}>
+              <div className="flex items-start gap-3 rounded-xl border border-line bg-cream-50 p-3.5">
+                <Mail size={19} className="mt-0.5 flex-none text-clay" />
+                <div className="min-w-0">
+                  <h2 className="text-[13px] font-semibold text-ink">Check your inbox</h2>
+                  <p className="mt-0.5 text-[11px] leading-relaxed text-muted">We sent a six-digit verification code to <strong className="text-ink">{email}</strong>.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-6 gap-1.5 sm:gap-2.5" role="group" aria-label="Six-digit verification code">
+                {digits.map((digit, index) => (
+                  <input
+                    key={index}
+                    ref={element => { inputRefs.current[index] = element }}
+                    className={cx('h-14 w-full min-w-0 rounded-xl border border-line bg-white text-center text-lg font-semibold text-forest outline-none transition focus:border-sage-600 focus:ring-2 focus:ring-sage-200 sm:h-16 sm:text-xl', busy && 'opacity-60')}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={1}
+                    value={digit}
+                    autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                    aria-label={`Digit ${index + 1}`}
+                    disabled={busy}
+                    onChange={event => updateDigit(index, event.target.value)}
+                    onPaste={pasteCode}
+                    onKeyDown={event => {
+                      if (event.key === 'Backspace' && !digits[index] && index > 0) inputRefs.current[index - 1]?.focus()
+                      if (event.key === 'ArrowLeft' && index > 0) inputRefs.current[index - 1]?.focus()
+                      if (event.key === 'ArrowRight' && index < OTP_LENGTH - 1) inputRefs.current[index + 1]?.focus()
+                    }}
+                  />
+                ))}
+              </div>
+
+              <button type="submit" disabled={busy || code.length !== OTP_LENGTH} className="flex h-12 items-center justify-center gap-2 rounded-xl bg-forest px-4 text-[13px] font-semibold text-white transition hover:bg-forest-600 disabled:opacity-50">
+                {busy ? 'Verifying code…' : 'Verify and sign in'} <ArrowRight size={16} />
+              </button>
+              <button type="button" disabled={busy || resendSeconds > 0} onClick={() => void resendOtp()} className="justify-self-center text-[11px] font-semibold text-sage-700 disabled:opacity-50">
+                {resendSeconds > 0 ? `Resend code in ${resendSeconds}s` : 'Resend verification code'}
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => { setStep('password'); setDigits(Array(OTP_LENGTH).fill('')); setStatus('ready'); setMessage(''); setResendSeconds(0) }}
+                className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-clay hover:text-forest"
+              >
+                <ArrowLeft size={13} /> Back to sign in
+              </button>
+            </form>
+          )}
+
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-line pt-4 text-[11px] text-muted">
+            <a href="https://www.jt-bazar.com/vendor/apply" className="font-semibold text-sage-700 hover:text-forest">Apply as a seller</a>
+            <a href="https://www.jt-bazar.com/contact" className="font-semibold text-sage-700 hover:text-forest">Marketplace support</a>
+          </div>
+          <p className="mt-3 text-center text-[10px] leading-5 text-muted">Vendor access is available only to approved JTBazar sellers. Account role and permissions are enforced by Supabase.</p>
+        </section>
       </div>
-      {step === 'password' ? <>
-        <h1 className="font-display text-2xl font-semibold text-forest">Sign in to your shop</h1>
-        <p className="mt-2 text-sm text-muted">Use the same email as your existing JTBazar customer account. No separate vendor registration is needed.</p>
-        <label className="mt-5 block text-sm font-medium">JTBazar account email<div className="mt-1 flex items-center gap-2 rounded-xl border border-line px-3"><Mail size={16} className="text-muted"/><input className="h-11 w-full outline-none" type="email" autoComplete="email" required value={email} onChange={e=>setEmail(e.target.value.trim())} placeholder="you@example.com"/></div></label>
-        <button type="button" disabled={busy || !email.trim()} onClick={()=>void submitGoogle()} className="mt-4 h-11 w-full rounded-xl border border-line bg-white px-4 text-sm font-semibold text-forest disabled:opacity-60">{busy ? 'Connecting…' : 'Continue with Google'}</button>
-        <div className="my-5 flex items-center gap-3 text-xs text-muted"><span className="h-px flex-1 bg-line"/><span>OR USE EMAIL + PASSWORD</span><span className="h-px flex-1 bg-line"/></div>
-        <form className="space-y-4" onSubmit={submitPassword}>
-          <label className="block text-sm font-medium">Password<div className="mt-1 flex items-center gap-2 rounded-xl border border-line px-3"><LockKeyhole size={16} className="text-muted"/><input className="h-11 w-full outline-none" type="password" autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)}/></div></label>
-          <button type="submit" disabled={busy || !email.trim()} className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-forest px-4 text-sm font-semibold text-white disabled:opacity-60">{busy?'Checking…':'Continue'} <ArrowRight size={16}/></button>
-        </form>
-      </> : <>
-        <h1 className="font-display text-2xl font-semibold text-forest">Verify your email</h1>
-        <p className="mt-2 text-sm text-muted">Enter the 6-digit code sent to <strong>{email}</strong>.</p>
-        <form className="mt-6 space-y-4" onSubmit={submitOtp}>
-          <label className="block text-sm font-medium">Email verification code<input className="mt-1 h-12 w-full rounded-xl border border-line px-4 text-center text-xl tracking-[.35em] outline-none" inputMode="numeric" autoComplete="one-time-code" maxLength={6} required value={otp} onChange={e=>setOtp(e.target.value.replace(/\D/g,'').slice(0,6))}/></label>
-          <button type="submit" disabled={busy} className="h-11 w-full rounded-xl bg-forest px-4 text-sm font-semibold text-white disabled:opacity-60">{busy?'Verifying…':'Verify and sign in'}</button>
-          <button type="button" disabled={busy || resendSeconds > 0} onClick={()=>void resendOtp()} className="w-full text-sm font-medium text-sage-700 disabled:opacity-50">{resendSeconds > 0 ? `Resend code in ${resendSeconds}s` : 'Resend verification code'}</button>
-          <button type="button" disabled={busy} onClick={()=>{setStep('password');setOtp('');setNotice('');setResendSeconds(0)}} className="w-full text-sm font-medium text-sage-700">Back to sign in</button>
-        </form>
-      </>}
-      {notice && <p role="status" className="mt-4 rounded-xl bg-sage-50 p-3 text-sm text-sage-800">{notice}</p>}
-      {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-      <div className="mt-6 flex flex-wrap justify-between gap-3 border-t border-line pt-4 text-xs"><a href="https://www.jt-bazar.com/forgot-password" className="text-sage-700 underline">Forgot password?</a><a href="https://www.jt-bazar.com/" className="text-sage-700 underline">Back to JTBazar</a></div><p className="mt-3 text-xs leading-5 text-muted">Vendor access is available only to an approved seller account. Your account role and permissions are enforced by Supabase.</p>
-    </section>
-  </main>
+    </main>
+  )
 }

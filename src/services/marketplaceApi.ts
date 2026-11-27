@@ -56,10 +56,12 @@ export async function startVendorGoogleSignIn(email: string) {
   if (!normalizedEmail) throw new Error('Enter the email address already registered on your JTBazar account.')
   const { data: method, error: lookupError } = await getSupabase().rpc('get_auth_method_for_email', { p_email: normalizedEmail })
   assertNoError(lookupError)
-  if (method !== 'google' && method !== 'mixed') {
-    throw new Error(method === 'password'
-      ? 'This JTBazar account uses email and password. Please use the email + OTP sign-in instead.'
-      : 'No existing JTBazar Google account was found for this email. Apply as a customer on JTBazar first.')
+  if (method !== 'google') {
+    throw new Error(method === 'mixed'
+      ? 'This JTBazar account uses both Google and password sign-in. Please use email + OTP instead.'
+      : method === 'password'
+        ? 'This JTBazar account uses email and password. Please use the email + OTP sign-in instead.'
+        : 'No existing JTBazar Google account was found for this email. Apply as a customer on JTBazar first.')
   }
   const expectedEmailKey = 'jtbazar_vendor_google_expected_email'
   try { window.sessionStorage.setItem(expectedEmailKey, normalizedEmail) }
@@ -84,21 +86,22 @@ export async function completeVendorGoogleSignIn(code: string, expectedEmail: st
     throw new Error('The Google account selected does not match the existing JTBazar email. Please try again.')
   }
   const identities = data.session.user.identities ?? []
-  if (!identities.some((identity) => identity.provider === 'google')) {
+  if (identities.length !== 1 || identities[0]?.provider !== 'google') {
     await getSupabase().auth.signOut({ scope: 'local' })
-    throw new Error('This account is not linked to Google. Please use email + OTP sign-in.')
+    throw new Error('This account is not a Google-only JTBazar account. Please use email + OTP sign-in.')
   }
   return data.session
 }
 
-export async function getVendorAccountSuspensionReason(): Promise<string | null> {
+export async function getVendorAccountSuspensionReason(authUser?: { id?: string; banned_until?: string | null } | null): Promise<string | null> {
   const client = getSupabase()
-  const { data: { user }, error: authError } = await client.auth.getUser()
-  assertNoError(authError)
+  const user = authUser === undefined ? (await client.auth.getUser()).data.user : authUser
   if (!user) return null
   const activeAuthBan = Boolean(user.banned_until && Date.parse(user.banned_until) > Date.now())
   const { data: notices } = await client.from('notifications')
-    .select('kind, title, body, created_at').eq('audience', 'customer')
+    .select('kind, title, body, created_at')
+    .eq('user_id', user.id)
+    .eq('audience', 'customer')
     .order('created_at', { ascending: false }).limit(30)
   const suspensionState = (notices ?? []).find(notice =>
     notice.kind === 'account' && ['Account suspended', 'Account restored'].includes(notice.title)
@@ -108,14 +111,81 @@ export async function getVendorAccountSuspensionReason(): Promise<string | null>
     || (activeAuthBan ? 'Your account is suspended by marketplace administration.' : null)
 }
 
-export async function getSellerProfile(): Promise<SellerProfile | null> {
-  const client = getSupabase()
-  const { data: { user }, error: authError } = await client.auth.getUser()
-  assertNoError(authError)
-  if (!user) return null
-  const { data, error } = await client.from('seller_profiles').select('*').eq('user_id', user.id).maybeSingle()
+export type VendorNotification = {
+  id: string
+  kind: string | null
+  title: string | null
+  body: string | null
+  created_at: string | null
+  read_at: string | null
+  link_url: string | null
+}
+
+export type VendorPromotion = Record<string, any>
+
+export async function listVendorNotifications(userId: string): Promise<VendorNotification[]> {
+  const { data, error } = await getSupabase().from('notifications')
+    .select('id, kind, title, body, created_at, read_at, link_url')
+    .eq('user_id', userId)
+    .eq('audience', 'vendor')
+    .order('created_at', { ascending: false })
+    .limit(40)
   assertNoError(error)
-  return data as SellerProfile | null
+  return (data ?? []) as VendorNotification[]
+}
+
+export async function markVendorNotificationsRead(userId: string): Promise<void> {
+  const { error } = await getSupabase().from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .eq('audience', 'vendor')
+    .is('read_at', null)
+  assertNoError(error)
+}
+
+export async function listVendorPromotions(): Promise<VendorPromotion[]> {
+  const { data, error } = await getSupabase().from('promotions')
+    .select('id, title, description, banner_image_url, cta_text, cta_destination, is_platform_wide, seller_id, status, rejection_reason, display_position, priority, coupon_code, discount_percent, start_date, end_date, starts_at, ends_at, target_platform, campaign_type, show_on_launch, created_at, updated_at')
+    .eq('is_platform_wide', false)
+    .order('created_at', { ascending: false })
+    .limit(100)
+  assertNoError(error)
+  return (data ?? []) as VendorPromotion[]
+}
+
+export async function createVendorPromotion(input: {
+  sellerId: string
+  title: string
+  description: string
+  couponCode: string
+  discountPercent: number | null
+  startDate: string | null
+  endDate: string | null
+}): Promise<void> {
+  if (!input.sellerId) throw new Error('An approved seller profile is required before creating a promotion.')
+  if (input.title.trim().length < 3) throw new Error('Enter a promotion title of at least 3 characters.')
+  if (input.discountPercent != null && (!Number.isFinite(input.discountPercent) || input.discountPercent < 0 || input.discountPercent > 100)) {
+    throw new Error('Discount must be between 0 and 100 percent.')
+  }
+  if (input.startDate && input.endDate && Date.parse(input.endDate) <= Date.parse(input.startDate)) {
+    throw new Error('The promotion end date must be after the start date.')
+  }
+  const { error } = await getSupabase().from('promotions').insert({
+    title: input.title.trim(),
+    description: input.description.trim() || null,
+    coupon_code: input.couponCode.trim() || null,
+    discount_percent: input.discountPercent,
+    start_date: input.startDate,
+    end_date: input.endDate,
+    seller_id: input.sellerId,
+    is_platform_wide: false,
+    status: 'pending_review',
+    display_position: 'hero_banner',
+    target_platform: 'both',
+    campaign_type: 'banner',
+    show_on_launch: false,
+  })
+  assertNoError(error)
 }
 
 export async function listVendorProducts(): Promise<VendorProduct[]> {
@@ -129,6 +199,69 @@ export async function listVendorProducts(): Promise<VendorProduct[]> {
       food_unit_price: product.food_unit_price == null ? null : Number((Number(product.food_unit_price) / multiplier).toFixed(2)),
     }
   }) as VendorProduct[]
+}
+
+export type VendorReview = {
+  id: string
+  source: 'shop' | 'product'
+  targetId: string
+  targetName: string
+  rating: number
+  title: string | null
+  comment: string | null
+  createdAt: string | null
+}
+
+export async function listVendorReviews(sellerId: string): Promise<{ products: VendorProduct[]; reviews: VendorReview[] }> {
+  const products = await listVendorProducts()
+  const productIds = products.map(product => String(product.id)).filter(Boolean)
+  const productNames = new Map(products.map(product => [String(product.id), String(product.name ?? 'Product')]))
+
+  const shopQuery = getSupabase()
+    .from('seller_reviews')
+    .select('id, seller_id, rating, comment, created_at')
+    .eq('seller_id', sellerId)
+    .eq('status', 'approved')
+    .order('created_at', { ascending: false })
+    .limit(100)
+
+  const productQuery = productIds.length
+    ? getSupabase()
+      .from('product_reviews')
+      .select('id, product_id, rating, title, comment, created_at')
+      .in('product_id', productIds)
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false })
+      .limit(100)
+    : Promise.resolve({ data: [] as any[], error: null })
+
+  const [shopResult, productResult] = await Promise.all([shopQuery, productQuery])
+  assertNoError(shopResult.error)
+  assertNoError(productResult.error)
+
+  const shopReviews: VendorReview[] = (shopResult.data ?? []).map((row: any) => ({
+    id: String(row.id),
+    source: 'shop',
+    targetId: sellerId,
+    targetName: 'Your shop',
+    rating: Number(row.rating ?? 0),
+    title: null,
+    comment: row.comment == null ? null : String(row.comment),
+    createdAt: row.created_at == null ? null : String(row.created_at),
+  }))
+
+  const productReviews: VendorReview[] = (productResult.data ?? []).map((row: any) => ({
+    id: String(row.id),
+    source: 'product',
+    targetId: String(row.product_id ?? ''),
+    targetName: productNames.get(String(row.product_id ?? '')) ?? 'Your product',
+    rating: Number(row.rating ?? 0),
+    title: row.title == null ? null : String(row.title),
+    comment: row.comment == null ? null : String(row.comment),
+    createdAt: row.created_at == null ? null : String(row.created_at),
+  }))
+
+  return { products, reviews: [...shopReviews, ...productReviews].sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? ''))) }
 }
 
 export async function listVendorInventory(): Promise<VendorInventory[]> {
@@ -153,7 +286,7 @@ export async function listVendorInventory(): Promise<VendorInventory[]> {
 }
 
 export async function listVendorOrders(options: { page?: number; pageSize?: number; search?: string; status?: string } = {}): Promise<VendorOrderItem[]> {
-  const pageSize = Math.max(1, Math.min(15, options.pageSize ?? 12))
+  const pageSize = Math.max(1, Math.min(48, options.pageSize ?? 12))
   const page = Math.max(0, options.page ?? 0)
   const { data, error } = await getSupabase().rpc('vendor_order_items_page_v2', {
     p_limit: pageSize,
@@ -305,7 +438,11 @@ export async function listVendorProductVariants(productId: string): Promise<Vend
     sku: row.sku,
     price_override: row.price_override == null ? null : Number((Number(row.price_override) / commissionMultiplier).toFixed(2)),
     attributes: row.attributes ?? {},
-    image_url: row.image_url ?? null,
+    image_url: row.image_url
+      ? /^https?:\/\//i.test(String(row.image_url))
+        ? String(row.image_url)
+        : client.storage.from('product-images').getPublicUrl(String(row.image_url)).data.publicUrl
+      : null,
     quantity: stockByVariant.get(row.id) ?? 0,
   }))
 }
@@ -492,12 +629,12 @@ export async function adjustVendorInventory(inventoryId: string, quantity: numbe
   assertNoError(error)
 }
 
-export async function setVendorDailyAvailability(input: { productId: string; isDailyItem: boolean; availableQuantity: number; minimumQuantity?: number; minimumOrderValue?: number | null; shopIsOpen?: boolean | null }) {
+export async function setVendorDailyAvailability(input: { productId: string; isDailyItem: boolean; availableQuantity: number; minimumQuantity?: number; minimumOrderValue?: number | null }) {
   if (!Number.isInteger(input.availableQuantity) || input.availableQuantity < 0) throw new Error('Daily availability must be a whole number of zero or more.')
   const { data, error } = await getSupabase().rpc('vendor_set_daily_availability', {
     p_product_id: input.productId, p_is_daily_item: input.isDailyItem,
     p_available_quantity: input.availableQuantity, p_minimum_quantity: input.minimumQuantity ?? 1,
-    p_minimum_order_value: input.minimumOrderValue ?? null, p_shop_is_open: input.shopIsOpen ?? null,
+    p_minimum_order_value: input.minimumOrderValue ?? null,
   })
   assertNoError(error)
   if (!data) throw new Error('Daily availability could not be saved.')
@@ -624,8 +761,7 @@ export async function updateVendorShopProfile(input: {
   shop_name: string; slug?: string; description: string; phone: string;
   current_address: string; complete_address: string; shop_lat?: number | null;
   shop_lng?: number | null; shop_location_label?: string; show_shop_on_map?: boolean;
-  shop_hours?: Record<string, unknown>;
-  shop_is_open?: boolean; shop_image_url?: string | null;
+  shop_image_url?: string | null;
   document_path?: string | null; cnic_front_path?: string | null; cnic_back_path?: string | null;
 }) {
   const client = getSupabase()
@@ -641,8 +777,6 @@ export async function updateVendorShopProfile(input: {
     ...(input.shop_lng !== undefined ? { shop_lng: input.shop_lng } : {}),
     ...(input.shop_location_label !== undefined ? { shop_location_label: input.shop_location_label.trim() } : {}),
     ...(input.show_shop_on_map !== undefined ? { show_shop_on_map: input.show_shop_on_map } : {}),
-    ...(input.shop_hours !== undefined ? { shop_hours: input.shop_hours } : {}),
-    ...(input.shop_is_open !== undefined ? { shop_is_open: input.shop_is_open } : {}),
     ...(input.shop_image_url !== undefined ? { shop_image_url: input.shop_image_url } : {}),
     ...(input.document_path !== undefined ? { document_path: input.document_path } : {}),
     ...(input.cnic_front_path !== undefined ? { cnic_front_path: input.cnic_front_path } : {}),
@@ -665,12 +799,12 @@ export async function removeVendorShopImage(path: string) {
 }
 
 export async function getVendorDashboardData() {
-  const [profile, products, inventory, orders, cases] = await Promise.all([
-    getSellerProfile(),
+  // The seller profile is already held by VendorAuthContext; do not query it again.
+  const [products, inventory, orders, cases] = await Promise.all([
     listVendorProducts(),
     listVendorInventory(),
-    listVendorOrders({ pageSize: 15 }),
+    listVendorOrders({ pageSize: 12 }),
     listVendorCases(),
   ])
-  return { profile, products, inventory, orders, cases }
+  return { products, inventory, orders, cases }
 }

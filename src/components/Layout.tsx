@@ -53,7 +53,7 @@ export function Layout() {
         />
 
         <main className="mx-auto w-full max-w-[1500px] px-4 pb-14 pt-6 sm:px-6 lg:px-8 lg:pb-16 lg:pt-8">
-          <div key={location.pathname} className="animate-rise">
+          <div className="animate-rise">
             <Outlet />
           </div>
         </main>

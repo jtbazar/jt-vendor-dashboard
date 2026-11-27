@@ -96,3 +96,28 @@ button:disabled {
     scroll-behavior: auto !important;
   }
 }
+
+@media print {
+  body > * {
+    visibility: hidden;
+  }
+
+  .print-slip,
+  .print-slip * {
+    visibility: visible;
+  }
+
+  .print-slip {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    padding: 12mm;
+    background: #fff;
+    color: #1f2a22;
+  }
+
+  .print-slip h3,
+  .print-slip p {
+    color: #1f2a22;
+  }
+}

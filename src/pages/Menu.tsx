@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { AlertCircle, Eye, EyeOff, ImagePlus, LoaderCircle, Package, Pencil, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react'
-import { Badge, Button, Card, PageHeader } from '../components/ui'
+import { AlertCircle, Eye, EyeOff, ImagePlus, LayoutGrid, List, LoaderCircle, Package, Pencil, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react'
+import { Badge, Button, Card, PageHeader, type BadgeTone } from '../components/ui'
 import { useVendorAuth } from '../context/VendorAuthContext'
 import {
   createVendorProduct, finalizeVendorProductSubmission, getVendorCommissionPreview,
@@ -10,7 +10,7 @@ import {
   uploadVendorProductImage, uploadVendorVariantImage,
   type VendorProduct, type VendorVariantInput,
 } from '../services/marketplaceApi'
-import { formatPKR } from '../utils'
+import { cx, formatPKR } from '../utils'
 
 type InventoryRow = { product_id: string; quantity: number; low_stock_threshold?: number | null }
 type CategoryRow = { id: string; name: string; parent_id?: string | null; is_food_category?: boolean }
@@ -23,6 +23,14 @@ function slugify(value: string) {
 function codeFromName(value: string) {
   const slug = slugify(value)
   return slug ? `JTB-${slug.toUpperCase()}` : ''
+}
+
+function moderationTone(status: unknown): BadgeTone {
+  const value = String(status ?? '')
+  if (value === 'approved') return 'forest'
+  if (value === 'rejected') return 'danger'
+  if (value === 'pending_review') return 'amber'
+  return 'neutral'
 }
 
 function ProductEditor({ product, categories, onCancel, onSaved }: {
@@ -207,7 +215,18 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
         <label className="text-[9px] font-semibold text-muted">Variant SKU<input value={row.sku??''} onChange={e=>setVariants(rows=>rows.map((v,i)=>i===index?{...v,sku:e.target.value||null}:v))} className="mt-1 h-9 w-full rounded border border-line px-2 text-xs text-ink"/></label>
         <label className="text-[9px] font-semibold text-muted">Price override<input type="number" min="0" step="0.01" value={row.price_override??''} onChange={e=>setVariants(rows=>rows.map((v,i)=>i===index?{...v,price_override:e.target.value===''?null:Number(e.target.value)}:v))} className="mt-1 h-9 w-full rounded border border-line px-2 text-xs text-ink"/></label>
         <div className="flex items-end gap-2"><label className="flex-1 text-[9px] font-semibold text-muted">Stock<input type="number" min="0" step="1" value={row.quantity} onChange={e=>setVariants(rows=>rows.map((v,i)=>i===index?{...v,quantity:Number(e.target.value)}:v))} className="mt-1 h-9 w-full rounded border border-line px-2 text-xs text-ink"/></label><Button size="sm" variant="ghost" color="danger" onClick={()=>setVariants(rows=>rows.filter((_,i)=>i!==index))}><X size={13}/></Button></div>
-        <label className="text-[9px] font-semibold text-muted sm:col-span-2">Variant image<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={e=>{const file=e.target.files?.[0];if(file&&file.size<=10*1024*1024)setVariantFiles(current=>({...current,[row.id??'']:file}));else if(file)setError('Variant images must be 10 MB or smaller.')}} className="mt-1 block w-full text-[9px]"/></label>
+        <div className="text-[9px] font-semibold text-muted sm:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span>Variant image</span>
+            {row.image_url ? <span className="flex items-center gap-2">
+              <a href={row.image_url} target="_blank" rel="noreferrer" className="font-semibold text-sage-700 underline">View saved image</a>
+              <button type="button" onClick={()=>setVariants(rows=>rows.map((v,i)=>i===index?{...v,image_url:null}:v))} className="font-semibold text-[#A14B38] underline">Remove</button>
+            </span> : null}
+          </div>
+          {row.image_url ? <a href={row.image_url} target="_blank" rel="noreferrer" className="mt-1 block w-fit overflow-hidden rounded-lg border border-line"><img src={row.image_url} alt={`${row.option_value} variant`} className="h-14 w-14 object-cover"/></a> : null}
+          <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={e=>{const file=e.target.files?.[0];if(file&&file.size<=10*1024*1024)setVariantFiles(current=>({...current,[row.id??'']:file}));else if(file)setError('Variant images must be 10 MB or smaller.');e.target.value=''}} className="mt-1 block w-full text-[9px]"/>
+          {variantFiles[row.id??''] ? <p className="mt-0.5 truncate text-[9px] font-normal text-sage-700">New image: {variantFiles[row.id??''].name}</p> : null}
+        </div>
       </div>)}</section>
       <section><h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-forest">Product images ({imageCount}/8)</h3><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{existingImages.map(image=><div key={image.id} className="overflow-hidden rounded-lg border border-line"><img src={image.url} alt={image.alt_text??name} className="aspect-square w-full object-cover"/><p className="p-1 text-[8px] text-muted">{image.is_primary?'Primary image':'Saved image'}</p></div>)}{imageFiles.map((file,index)=><div key={file.name+index} className="relative overflow-hidden rounded-lg border border-line"><img src={imagePreviews[index]??''} alt={file.name} className="aspect-square w-full object-cover"/><button type="button" onClick={()=>setImageFiles(rows=>rows.filter((_,i)=>i!==index))} className="absolute right-1 top-1 rounded-full bg-white p-1"><X size={12}/></button></div>)}</div><label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-sage-400 p-3 text-[10px] font-semibold text-sage-700"><ImagePlus size={14}/> Add JPG / PNG / WebP / AVIF images<input type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif" disabled={imageCount>=8} onChange={e=>addImages(e.target.files)} className="hidden"/></label><p className="mt-1 text-[9px] text-muted">At least one image required. Maximum 8 total, 10 MB each. Existing images are retained when you add more.</p></section>
       <section><h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-forest">Description and SEO</h3><div className="grid gap-3"><label className="text-[10px] font-semibold text-muted">Short description<textarea maxLength={300} rows={2} value={shortDescription} onChange={e=>setShortDescription(e.target.value)} className="mt-1 w-full rounded-lg border border-line p-3 text-xs text-ink"/></label><label className="text-[10px] font-semibold text-muted">Full description<textarea rows={4} value={description} onChange={e=>setDescription(e.target.value)} className="mt-1 w-full rounded-lg border border-line p-3 text-xs text-ink"/></label><label className="text-[10px] font-semibold text-muted">Specifications (JSON array)<textarea rows={3} value={specifications} onChange={e=>setSpecifications(e.target.value)} className="mt-1 w-full rounded-lg border border-line p-3 font-mono text-[10px] text-ink"/></label><label className="text-[10px] font-semibold text-muted">Dimensions (JSON object)<textarea rows={3} value={dimensions} onChange={e=>setDimensions(e.target.value)} className="mt-1 w-full rounded-lg border border-line p-3 font-mono text-[10px] text-ink"/></label><label className="text-[10px] font-semibold text-muted">SEO title<input value={seoTitle} onChange={e=>setSeoTitle(e.target.value)} className="mt-1 h-9 w-full rounded-lg border border-line px-3 text-xs text-ink"/></label><label className="text-[10px] font-semibold text-muted">SEO description<textarea rows={2} value={seoDescription} onChange={e=>setSeoDescription(e.target.value)} className="mt-1 w-full rounded-lg border border-line p-3 text-xs text-ink"/></label></div></section>
@@ -232,6 +251,10 @@ export function MenuPage() {
   const [moderation,setModeration]=useState('all')
   const [visibility,setVisibility]=useState('all')
   const [stockFilter,setStockFilter]=useState('all')
+  const [sort,setSort]=useState('name_asc')
+  const [page,setPage]=useState(0)
+  const [pageSize,setPageSize]=useState(9)
+  const [viewMode,setViewMode]=useState<'list'|'grid'>('list')
   const [editing,setEditing]=useState<VendorProduct|null>(null)
   const [creating,setCreating]=useState(false)
   const [deletionTarget,setDeletionTarget]=useState<VendorProduct|null>(null)
@@ -247,14 +270,15 @@ export function MenuPage() {
       setImages(await listVendorProductPrimaryImages(p.map(row=>String(row.id))))
     }catch(cause){setError(cause instanceof Error?cause.message:'Your live product data could not be loaded.')}
     finally{setLoading(false);setRefreshing(false)}
-  },[user])
+  },[user?.id])
   useEffect(()=>{void load()},[load])
 
   const categoryNames=useMemo(()=>new Map(categories.map(c=>[c.id,c.name])),[categories])
   const stockByProduct=useMemo(()=>{const map=new Map<string,number>();for(const row of inventory)map.set(row.product_id,(map.get(row.product_id)??0)+Number(row.quantity??0));return map},[inventory])
+  const deletionByProduct=useMemo(()=>new Map(deletionRequests.map(row=>[row.product_id,row])),[deletionRequests])
   const filtered=useMemo(()=>{
     const q=search.trim().toLowerCase()
-    return products.filter(p=>{
+    const rows=products.filter(p=>{
       if(q&&![p.name,p.sku,p.slug,categoryNames.get(String(p.category_id??''))].some(v=>String(v??'').toLowerCase().includes(q)))return false
       if(categoryFilter!=='all'&&String(p.category_id)!==categoryFilter)return false
       if(moderation!=='all'&&String(p.moderation_status)!==moderation)return false
@@ -265,12 +289,33 @@ export function MenuPage() {
       if(stockFilter==='out_of_stock'&&qty>0)return false
       if(stockFilter==='low_stock'&&(qty<=0||qty>(inventory.find(row=>row.product_id===p.id)?.low_stock_threshold??5)))return false
       return true
-    }).sort((a,b)=>String(a.name).localeCompare(String(b.name)))
-  },[products,search,categoryFilter,moderation,visibility,stockFilter,categoryNames,stockByProduct,inventory])
+    })
+    const priceOf=(row:VendorProduct)=>Number(row.vendor_base_price??row.price??0)
+    const stockOf=(row:VendorProduct)=>stockByProduct.get(String(row.id))??0
+    const sorters:Record<string,(a:VendorProduct,b:VendorProduct)=>number>={
+      name_asc:(a,b)=>String(a.name).localeCompare(String(b.name)),
+      name_desc:(a,b)=>String(b.name).localeCompare(String(a.name)),
+      price_asc:(a,b)=>priceOf(a)-priceOf(b),
+      price_desc:(a,b)=>priceOf(b)-priceOf(a),
+      newest:(a,b)=>String(b.created_at??'').localeCompare(String(a.created_at??'')),
+      stock_asc:(a,b)=>stockOf(a)-stockOf(b),
+      stock_desc:(a,b)=>stockOf(b)-stockOf(a),
+    }
+    const sorter=sorters[sort]??sorters.name_asc
+    return [...rows].sort((a,b)=>sorter(a,b)||String(a.name).localeCompare(String(b.name)))
+  },[products,search,categoryFilter,moderation,visibility,stockFilter,categoryNames,stockByProduct,inventory,sort])
+
+  const pageCount=Math.max(1,Math.ceil(filtered.length/pageSize))
+  const currentPage=Math.min(page,pageCount-1)
+  const visibleProducts=useMemo(()=>filtered.slice(currentPage*pageSize,currentPage*pageSize+pageSize),[filtered,currentPage,pageSize])
+  const resetPage=()=>setPage(0)
 
   const toggleVisibility=async(product:VendorProduct)=>{
     const id=String(product.id);setActionId(id);setError('')
-    try{await setProductVisibility(id,!Boolean(product.vendor_hidden));await load(true)}
+    try{
+      const updated=await setProductVisibility(id,!Boolean(product.vendor_hidden))
+      setProducts(current=>current.map(row=>String(row.id)===id?updated as VendorProduct:row))
+    }
     catch(cause){setError(cause instanceof Error?cause.message:'Product visibility could not be updated.')}
     finally{setActionId(null)}
   }
@@ -283,25 +328,137 @@ export function MenuPage() {
   }
   const saveComplete=async()=>{setCreating(false);setEditing(null);await load(true)}
 
+  const renderActions=(product:VendorProduct,compact=false)=>{
+    const id=String(product.id)
+    const hidden=Boolean(product.vendor_hidden)
+    const approved=product.moderation_status==='approved'
+    const request=deletionByProduct.get(id)
+    return <div className={cx('flex flex-wrap items-center gap-1.5',compact&&'sm:justify-end')}>
+      <Button size="sm" variant="secondary" onClick={()=>{setEditing(product);setCreating(false)}} aria-label={`Edit ${String(product.name)}`}><Pencil size={12}/> Edit</Button>
+      <Button size="sm" variant="secondary" disabled={!approved||actionId===id} onClick={()=>void toggleVisibility(product)} aria-label={hidden?`Show ${String(product.name)}`:`Hide ${String(product.name)}`}>
+        {actionId===id?<LoaderCircle size={12} className="animate-spin"/>:hidden?<Eye size={12}/>:<EyeOff size={12}/>} {hidden?'Show':'Hide'}
+      </Button>
+      <Button
+        size="sm"
+        variant="ghost"
+        className="text-[#A14B38] hover:bg-[#F9EAE6] hover:text-[#8A3C36]"
+        disabled={request?.status==='pending'}
+        onClick={()=>{setDeletionTarget(product);setDeletionReason('')}}
+        aria-label={`Request removal for ${String(product.name)}`}
+      >
+        <Trash2 size={12}/> Request removal
+      </Button>
+    </div>
+  }
+
   return <div className="space-y-4">
-    <PageHeader eyebrow={<><Package size={12}/> Product catalogue</>} title="Your products, your business." description="Create and edit your own listings, manage variants, pricing, images and moderation requests using existing vendor-authorized marketplace workflows." actions={<><Button variant="secondary" onClick={()=>void load(true)} disabled={loading||refreshing}>{refreshing?<LoaderCircle size={13} className="animate-spin"/>:<RefreshCw size={13}/>} Refresh</Button><Button variant="primary" onClick={()=>{setEditing(null);setCreating(true)}}><Plus size={13}/> Add product</Button></>}/>
+    <PageHeader eyebrow={<><Package size={12}/> Product catalogue</>} title="Your products, your business." description="Create and edit your own listings, manage variants, pricing, images and moderation requests using existing vendor-authorized marketplace workflows. Switch between list and card views at any time." actions={<><Button variant="secondary" onClick={()=>void load(true)} disabled={loading||refreshing}>{refreshing?<LoaderCircle size={13} className="animate-spin"/>:<RefreshCw size={13}/>} Refresh</Button><Button variant="primary" onClick={()=>{setEditing(null);setCreating(true)}}><Plus size={13}/> Add product</Button></>}/>
     {error?<Card className="border border-red-200 bg-red-50 p-3 text-[10px] text-red-800">{error}</Card>:null}
     {creating||editing?<ProductEditor key={editing?.id??'new'} product={editing} categories={categories} onCancel={()=>{setCreating(false);setEditing(null)}} onSaved={saveComplete}/>:<>
       <Card className="grid grid-cols-2 divide-x divide-y divide-line overflow-hidden sm:grid-cols-4 sm:divide-y-0">
         {[['Total listings',products.length],['Approved',products.filter(p=>p.moderation_status==='approved').length],['Under review',products.filter(p=>p.moderation_status==='pending_review').length],['Deletion requests',deletionRequests.filter(r=>r.status==='pending').length]].map(([label,value])=><div key={String(label)} className="p-4"><p className="font-display text-xl font-semibold text-forest tabular">{loading?'—':value}</p><p className="mt-1 text-[9px] font-semibold uppercase tracking-wider text-muted">{label}</p></div>)}
       </Card>
-      <Card className="p-3"><div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-        <label className="relative sm:col-span-2 xl:col-span-1"><Search size={13} className="absolute left-3 top-3 text-muted"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name, SKU, slug…" className="h-9 w-full rounded-lg border border-line pl-8 pr-2 text-[10px]"/></label>
-        <select value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)} className="h-9 rounded-lg border border-line bg-white px-2 text-[10px]"><option value="all">All categories</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
-        <select value={moderation} onChange={e=>setModeration(e.target.value)} className="h-9 rounded-lg border border-line bg-white px-2 text-[10px]"><option value="all">All approval statuses</option><option value="approved">Approved</option><option value="pending_review">Under review</option><option value="rejected">Rejected</option></select>
-        <select value={visibility} onChange={e=>setVisibility(e.target.value)} className="h-9 rounded-lg border border-line bg-white px-2 text-[10px]"><option value="all">All visibility</option><option value="visible">Visible</option><option value="hidden">Hidden</option></select>
-        <select value={stockFilter} onChange={e=>setStockFilter(e.target.value)} className="h-9 rounded-lg border border-line bg-white px-2 text-[10px]"><option value="all">All stock levels</option><option value="in_stock">In stock</option><option value="low_stock">Low stock</option><option value="out_of_stock">Out of stock</option></select>
+      <Card className="p-3"><div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-7">
+        <label className="relative sm:col-span-2 xl:col-span-1"><Search size={13} className="absolute left-3 top-3 text-muted"/><input value={search} onChange={e=>{setSearch(e.target.value);resetPage()}} placeholder="Search name, SKU, slug…" className="h-9 w-full rounded-lg border border-line pl-8 pr-2 text-[10px]"/></label>
+        <select value={categoryFilter} onChange={e=>{setCategoryFilter(e.target.value);resetPage()}} className="h-9 rounded-lg border border-line bg-white px-2 text-[10px]"><option value="all">All categories</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
+        <select value={moderation} onChange={e=>{setModeration(e.target.value);resetPage()}} className="h-9 rounded-lg border border-line bg-white px-2 text-[10px]"><option value="all">All approval statuses</option><option value="approved">Approved</option><option value="pending_review">Under review</option><option value="rejected">Rejected</option></select>
+        <select value={visibility} onChange={e=>{setVisibility(e.target.value);resetPage()}} className="h-9 rounded-lg border border-line bg-white px-2 text-[10px]"><option value="all">All visibility</option><option value="visible">Visible</option><option value="hidden">Hidden</option></select>
+        <select value={stockFilter} onChange={e=>{setStockFilter(e.target.value);resetPage()}} className="h-9 rounded-lg border border-line bg-white px-2 text-[10px]"><option value="all">All stock levels</option><option value="in_stock">In stock</option><option value="low_stock">Low stock</option><option value="out_of_stock">Out of stock</option></select>
+        <select aria-label="Sort products" value={sort} onChange={e=>{setSort(e.target.value);resetPage()}} className="h-9 rounded-lg border border-line bg-white px-2 text-[10px]"><option value="name_asc">Sort: Name A–Z</option><option value="name_desc">Sort: Name Z–A</option><option value="price_asc">Sort: Price low to high</option><option value="price_desc">Sort: Price high to low</option><option value="newest">Sort: Newest first</option><option value="stock_asc">Sort: Stock low to high</option><option value="stock_desc">Sort: Stock high to low</option></select>
+        <div className="flex items-center justify-end gap-1 rounded-lg border border-line bg-white p-0.5" role="group" aria-label="Product view">
+          <Button size="sm" variant={viewMode==='list'?'soft':'ghost'} onClick={()=>setViewMode('list')} aria-label="List view" title="List view"><List size={13}/></Button>
+          <Button size="sm" variant={viewMode==='grid'?'soft':'ghost'} onClick={()=>setViewMode('grid')} aria-label="Card view" title="Card view"><LayoutGrid size={13}/></Button>
+        </div>
       </div></Card>
-      {loading?<Card className="flex justify-center p-10 text-xs text-muted"><LoaderCircle size={15} className="mr-2 animate-spin"/>Loading live products…</Card>:filtered.length===0?<Card className="p-10 text-center"><Package size={24} className="mx-auto text-muted"/><p className="mt-2 text-xs font-semibold text-ink">{products.length?'No products match these filters':'No products found'}</p><p className="mt-1 text-[9px] text-muted">Create a listing or adjust your filters.</p></Card>:<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{filtered.map(product=>{
-        const id=String(product.id),hidden=Boolean(product.vendor_hidden),approved=product.moderation_status==='approved',qty=stockByProduct.get(id)??0
-        const request=deletionRequests.find(row=>row.product_id===id)
-        return <article key={id} className="overflow-hidden rounded-2xl border border-line bg-white shadow-card"><div className="relative grid h-40 place-items-center bg-cream-50">{images[id]?<img src={images[id]} alt={String(product.name)} className="h-full w-full object-cover"/>:<Package size={26} className="text-muted"/>}<div className="absolute left-2 top-2 flex gap-1"><Badge tone={approved?'forest':product.moderation_status==='rejected'?'amber':'sage'}>{String(product.moderation_status??'not submitted').replaceAll('_',' ')}</Badge>{hidden?<Badge tone="amber">Hidden</Badge>:null}</div></div><div className="p-4"><p className="text-[8px] font-semibold uppercase tracking-wider text-sage-700">{categoryNames.get(String(product.category_id??''))??'Uncategorized'}</p><h3 className="mt-1 font-display text-sm font-semibold text-ink">{String(product.name)}</h3><p className="mt-1 text-[9px] text-muted">SKU: {String(product.sku??'—')}</p><div className="mt-3 flex justify-between"><strong className="font-display text-base text-forest">{formatPKR(Number(product.vendor_base_price??product.price??0))}</strong><span className="text-right text-[10px]"><strong>{qty}</strong><span className="block text-[8px] text-muted">in stock</span></span></div>{request?<p className="mt-2 text-[9px] text-amber-700">Deletion request: {request.status}</p>:null}<div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3"><Button size="sm" variant="secondary" onClick={()=>{setEditing(product);setCreating(false)}}><Pencil size={11}/> Edit</Button><Button size="sm" variant="secondary" disabled={!approved||actionId===id} onClick={()=>void toggleVisibility(product)}>{actionId===id?<LoaderCircle size={11} className="animate-spin"/>:hidden?<Eye size={11}/>:<EyeOff size={11}/>} {hidden?'Show':'Hide'}</Button><Button size="sm" variant="ghost" color="danger" disabled={Boolean(request?.status==='pending')} onClick={()=>{setDeletionTarget(product);setDeletionReason('')}}><Trash2 size={11}/> Request removal</Button></div></div></article>
-      })}</div>}
+      {loading ? (
+        <Card className="flex justify-center p-10 text-xs text-muted"><LoaderCircle size={15} className="mr-2 animate-spin" />Loading live products…</Card>
+      ) : filtered.length === 0 ? (
+        <Card className="p-10 text-center"><Package size={24} className="mx-auto text-muted" /><p className="mt-2 text-xs font-semibold text-ink">{products.length ? 'No products match these filters' : 'No products found'}</p><p className="mt-1 text-[9px] text-muted">Create a listing or adjust your filters.</p></Card>
+      ) : viewMode === 'list' ? (
+        <div className="space-y-2">
+          {visibleProducts.map(product => {
+            const id = String(product.id)
+            const hidden = Boolean(product.vendor_hidden)
+            const qty = stockByProduct.get(id) ?? 0
+            const request = deletionByProduct.get(id)
+            return (
+              <article key={id} className="flex flex-col gap-3 rounded-xl border border-line bg-white p-3 shadow-card sm:flex-row sm:items-center">
+                <button
+                  type="button"
+                  onClick={() => { setEditing(product); setCreating(false) }}
+                  className="group relative h-16 w-16 flex-none overflow-hidden rounded-lg border border-line bg-cream-50 sm:h-[68px] sm:w-[68px]"
+                  aria-label={`Edit ${String(product.name)}`}
+                >
+                  {images[id] ? <img src={images[id]} alt={String(product.name)} className="h-full w-full object-cover" /> : <Package size={22} className="absolute inset-0 m-auto text-muted" />}
+                  <span className="absolute inset-0 grid place-items-center bg-forest/0 text-white opacity-0 transition group-hover:bg-forest/45 group-hover:opacity-100"><Pencil size={15} /></span>
+                </button>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Badge tone={moderationTone(product.moderation_status)}>{String(product.moderation_status ?? 'not submitted').replaceAll('_', ' ')}</Badge>
+                    {hidden ? <Badge tone="amber">Hidden</Badge> : null}
+                    {request ? <Badge tone="outline">Deletion: {request.status}</Badge> : null}
+                  </div>
+                  <h3 className="mt-1.5 truncate font-display text-sm font-semibold text-ink">{String(product.name)}</h3>
+                  <p className="mt-0.5 truncate text-[9px] text-muted">{categoryNames.get(String(product.category_id ?? '')) ?? 'Uncategorized'} · SKU: {String(product.sku ?? '—')}</p>
+                </div>
+                <div className="shrink-0 sm:min-w-[110px] sm:text-right">
+                  <p className="font-display text-sm font-semibold text-forest">{formatPKR(Number(product.vendor_base_price ?? product.price ?? 0))}</p>
+                  <p className="mt-0.5 text-[9px] text-muted"><strong className="text-ink">{qty}</strong> in stock</p>
+                </div>
+                <div className="border-t border-line pt-3 sm:border-l sm:border-t-0 sm:pl-3 sm:pt-0">{renderActions(product, true)}</div>
+              </article>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {visibleProducts.map(product => {
+            const id = String(product.id)
+            const hidden = Boolean(product.vendor_hidden)
+            const qty = stockByProduct.get(id) ?? 0
+            const request = deletionByProduct.get(id)
+            return (
+              <article key={id} className="overflow-hidden rounded-2xl border border-line bg-white shadow-card">
+                <div className="relative h-32 sm:h-36">
+                  {images[id] ? <img src={images[id]} alt={String(product.name)} className="h-full w-full object-cover" /> : <div className="grid h-full w-full place-items-center bg-cream-50"><Package size={26} className="text-muted" /></div>}
+                  <div className="absolute left-2 top-2 flex flex-wrap gap-1">
+                    <Badge tone={moderationTone(product.moderation_status)}>{String(product.moderation_status ?? 'not submitted').replaceAll('_', ' ')}</Badge>
+                    {hidden ? <Badge tone="amber">Hidden</Badge> : null}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setEditing(product); setCreating(false) }}
+                    className="absolute right-2 top-2 inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/70 bg-white/95 px-2.5 text-[10px] font-semibold text-forest shadow-sm transition hover:bg-white"
+                    aria-label={`Edit ${String(product.name)}`}
+                  >
+                    <Pencil size={12} /> Edit
+                  </button>
+                </div>
+                <div className="p-4">
+                  <p className="text-[8px] font-semibold uppercase tracking-wider text-sage-700">{categoryNames.get(String(product.category_id ?? '')) ?? 'Uncategorized'}</p>
+                  <h3 className="mt-1 font-display text-sm font-semibold text-ink">{String(product.name)}</h3>
+                  <p className="mt-1 truncate text-[9px] text-muted">SKU: {String(product.sku ?? '—')}</p>
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <strong className="font-display text-base text-forest">{formatPKR(Number(product.vendor_base_price ?? product.price ?? 0))}</strong>
+                    <span className="text-right text-[10px]"><strong>{qty}</strong><span className="block text-[8px] text-muted">in stock</span></span>
+                  </div>
+                  {request ? <p className="mt-2 text-[9px] text-amber-700">Deletion request: {request.status}</p> : null}
+                  <div className="mt-3 rounded-xl border-t border-line bg-cream-50/70 px-2 py-2.5">{renderActions(product)}</div>
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      )}
+       {!loading&&filtered.length>0?<Card className="flex flex-wrap items-center justify-between gap-3 p-3">
+         <p className="text-[10px] text-muted">Showing {currentPage*pageSize+1}–{Math.min((currentPage+1)*pageSize,filtered.length)} of {filtered.length} products</p>
+         <div className="flex flex-wrap items-center gap-2">
+           <label className="text-[10px] text-muted">Per page<select aria-label="Products per page" value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setPage(0)}} className="ml-2 h-8 rounded-lg border border-line bg-white px-2 text-[10px]"><option value={9}>9</option><option value={12}>12</option><option value={24}>24</option></select></label>
+           <Button size="sm" variant="secondary" disabled={currentPage<=0} onClick={()=>setPage(current=>Math.max(0,current-1))}>Previous</Button>
+           <span className="text-[10px] font-semibold text-ink">Page {currentPage+1} of {pageCount}</span>
+           <Button size="sm" variant="secondary" disabled={currentPage>=pageCount-1} onClick={()=>setPage(current=>Math.min(pageCount-1,current+1))}>Next</Button>
+         </div>
+       </Card>:null}
     </>}
     {deletionTarget?<div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"><Card className="w-full max-w-md p-5"><div className="flex items-center justify-between"><h2 className="font-display text-base font-semibold text-forest">Request product deletion</h2><Button size="sm" variant="ghost" onClick={()=>setDeletionTarget(null)}><X size={14}/></Button></div><p className="mt-2 text-xs text-muted">{deletionTarget.name}</p><label className="mt-4 block text-[10px] font-semibold text-muted">Reason for deletion<textarea rows={4} minLength={3} value={deletionReason} onChange={e=>setDeletionReason(e.target.value)} className="mt-1 w-full rounded-lg border border-line p-3 text-xs text-ink"/></label><p className="mt-2 text-[9px] text-muted">The listing is not deleted automatically. JTBazar Admin must review and approve this request.</p><div className="mt-4 flex justify-end gap-2"><Button variant="secondary" onClick={()=>setDeletionTarget(null)}>Cancel</Button><Button variant="primary" disabled={deleting||deletionReason.trim().length<3} onClick={()=>void submitDeletion()}>{deleting?<LoaderCircle size={12} className="animate-spin"/>:'Submit request'}</Button></div></Card></div>:null}
   </div>

@@ -50,7 +50,7 @@ export function SupportPage() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Cases and support records could not be loaded.')
     } finally { setLoading(false) }
-  }, [user, tab])
+  }, [user?.id])
 
   useEffect(() => { void load() }, [load])
 

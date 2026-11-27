@@ -44,7 +44,7 @@ export function OverviewPage() {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [user])
+  }, [user?.id])
 
   useEffect(() => { void load() }, [load])
 

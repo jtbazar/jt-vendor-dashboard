@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Bell,
@@ -7,6 +7,7 @@ import {
   ChevronRight,
   ExternalLink,
   LifeBuoy,
+  LoaderCircle,
   LogOut,
   Menu,
   ReceiptText,
@@ -19,11 +20,11 @@ import {
 } from 'lucide-react'
 import { useApp } from '../../store'
 import { cx } from '../../utils'
-import { Avatar, IconButton } from '../ui'
+import { IconButton } from '../ui'
 import { useVendorAuth } from '../../context/VendorAuthContext'
-import type { Notification } from '../../data/mock'
+import { listVendorNotifications, markVendorNotificationsRead, type VendorNotification } from '../../services/marketplaceApi'
 
-const notificationIcons: Record<Notification['kind'], LucideIcon> = {
+const notificationIcons: Record<string, LucideIcon> = {
   order: ReceiptText,
   stock: Boxes,
   review: Star,
@@ -42,6 +43,18 @@ function useOutsideClose(onClose: () => void) {
   return ref
 }
 
+function notificationTime(value: string | null) {
+  if (!value) return 'Recently'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Recently'
+  const minutes = Math.floor((Date.now() - date.getTime()) / 60000)
+  if (minutes < 1) return 'Just now'
+  if (minutes < 60) return `${minutes}m ago`
+  if (minutes < 1440) return `${Math.floor(minutes / 60)}h ago`
+  if (minutes < 10080) return `${Math.floor(minutes / 1440)}d ago`
+  return date.toLocaleDateString()
+}
+
 export function Topbar({
   pageTitle,
   onMenu,
@@ -53,20 +66,62 @@ export function Topbar({
 }) {
   const navigate = useNavigate()
   const { seller, user, signOut } = useVendorAuth()
-  const ownerName = String(seller?.owner_full_name || user?.user_metadata?.full_name || user?.email || 'Vendor')
-  const ownerRole = String(seller?.business_type || 'Seller').replaceAll('_', ' ')
+  const shopName = String(seller?.shop_name || 'Your store')
+  const shopInitials = shopName.slice(0, 2).toUpperCase()
+  const shopRole = String(seller?.business_type || 'Seller')
+    .replaceAll('_', ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
   const ownerEmail = String(seller?.contact_email || user?.email || '')
-  const storeIsOpen = seller?.shop_is_open === true
-  const {
-    notifications,
-    unreadCount,
-    markAllNotificationsRead,
-    pushToast,
-  } = useApp()
+  const storeIsOpen = seller?.shop_is_open !== false
+  const { pushToast } = useApp()
+  const [notifications, setNotifications] = useState<VendorNotification[]>([])
+  const [notificationsLoading, setNotificationsLoading] = useState(false)
+  const [notificationsError, setNotificationsError] = useState('')
+  const [markingRead, setMarkingRead] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const notificationRef = useOutsideClose(() => setNotificationsOpen(false))
-  const profileRef = useOutsideClose(() => setProfileOpen(false))
+
+  const closeNotifications = useCallback(() => setNotificationsOpen(false), [])
+  const closeProfile = useCallback(() => setProfileOpen(false), [])
+  const notificationRef = useOutsideClose(closeNotifications)
+  const profileRef = useOutsideClose(closeProfile)
+
+  const loadNotifications = useCallback(async () => {
+    if (!user?.id) {
+      setNotifications([])
+      return
+    }
+    setNotificationsLoading(true)
+    setNotificationsError('')
+    try {
+      setNotifications(await listVendorNotifications(user.id))
+    } catch (cause) {
+      setNotifications([])
+      setNotificationsError(cause instanceof Error ? cause.message : 'Vendor notifications could not be loaded.')
+    } finally {
+      setNotificationsLoading(false)
+    }
+  }, [user?.id])
+
+  useEffect(() => {
+    void loadNotifications()
+  }, [loadNotifications])
+
+  const unreadCount = useMemo(() => notifications.filter((item) => !item.read_at).length, [notifications])
+
+  const markAllRead = async () => {
+    if (!user?.id || !unreadCount || markingRead) return
+    setMarkingRead(true)
+    setNotificationsError('')
+    try {
+      await markVendorNotificationsRead(user.id)
+      await loadNotifications()
+    } catch (cause) {
+      setNotificationsError(cause instanceof Error ? cause.message : 'Notifications could not be marked as read.')
+    } finally {
+      setMarkingRead(false)
+    }
+  }
 
   return (
     <header className="sticky top-0 z-30 border-b border-line/80 bg-cream-100/85 backdrop-blur-xl">
@@ -135,38 +190,61 @@ export function Topbar({
                   </div>
                   <button
                     type="button"
-                    onClick={markAllNotificationsRead}
-                    disabled={!unreadCount}
+                    onClick={() => void markAllRead()}
+                    disabled={!unreadCount || markingRead}
                     className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-sage-700 transition hover:text-forest disabled:opacity-40"
                   >
-                    <CheckCheck size={12} /> Mark all read
+                    {markingRead ? <LoaderCircle size={12} className="animate-spin" /> : <CheckCheck size={12} />} Mark all read
                   </button>
                 </div>
                 <div className="max-h-[340px] overflow-y-auto">
-                  {notifications.map((item) => {
-                    const Icon = notificationIcons[item.kind]
-                    return (
-                      <div
-                        key={item.id}
-                        className={cx(
-                          'flex gap-3 border-b border-[#F1EEE6] px-4 py-3 last:border-0',
-                          item.unread ? 'bg-[#FBFAF4]' : 'bg-white',
-                        )}
+                  {notificationsError ? (
+                    <div className="px-4 py-4 text-center">
+                      <p className="text-[10px] text-red-700">{notificationsError}</p>
+                      <button
+                        type="button"
+                        onClick={() => void loadNotifications()}
+                        className="mt-2 text-[10px] font-semibold text-sage-700 underline"
                       >
-                        <span className="mt-0.5 grid h-8 w-8 flex-none place-items-center rounded-full bg-sage-100 text-sage-700">
-                          <Icon size={14} />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-[11px] font-semibold leading-snug text-ink">{item.title}</p>
-                            {item.unread ? <span className="mt-1 h-1.5 w-1.5 flex-none rounded-full bg-clay" /> : null}
+                        Try again
+                      </button>
+                    </div>
+                  ) : notificationsLoading ? (
+                    <div className="flex items-center justify-center gap-2 p-8 text-[10px] text-muted">
+                      <LoaderCircle size={14} className="animate-spin" /> Loading live notifications…
+                    </div>
+                  ) : notifications.length ? (
+                    notifications.map((item) => {
+                      const Icon = notificationIcons[String(item.kind ?? '')] ?? Bell
+                      return (
+                        <div
+                          key={item.id}
+                          className={cx(
+                            'flex gap-3 border-b border-[#F1EEE6] px-4 py-3 last:border-0',
+                            !item.read_at ? 'bg-[#FBFAF4]' : 'bg-white',
+                          )}
+                        >
+                          <span className="mt-0.5 grid h-8 w-8 flex-none place-items-center rounded-full bg-sage-100 text-sage-700">
+                            <Icon size={14} />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-[11px] font-semibold leading-snug text-ink">{item.title || 'Vendor update'}</p>
+                              {!item.read_at ? <span className="mt-1 h-1.5 w-1.5 flex-none rounded-full bg-clay" /> : null}
+                            </div>
+                            <p className="mt-0.5 text-[10px] leading-relaxed text-muted">{item.body || 'No details were provided.'}</p>
+                            <p className="mt-1 text-[9px] font-medium text-[#A0A59A]">{notificationTime(item.created_at)}</p>
                           </div>
-                          <p className="mt-0.5 text-[10px] leading-relaxed text-muted">{item.detail}</p>
-                          <p className="mt-1 text-[9px] font-medium text-[#A0A59A]">{item.time}</p>
                         </div>
-                      </div>
-                    )
-                  })}
+                      )
+                    })
+                  ) : (
+                    <div className="p-8 text-center">
+                      <Bell size={20} className="mx-auto text-muted" />
+                      <p className="mt-2 text-[10px] font-semibold text-ink">No vendor notifications yet</p>
+                      <p className="mt-1 text-[9px] text-muted">Updates sent to your seller account will appear here.</p>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : null}
@@ -185,10 +263,16 @@ export function Topbar({
               aria-label="Open account menu"
               aria-expanded={profileOpen}
             >
-              <Avatar name={ownerName} size={32} />
+              <span className="grid h-8 w-8 flex-none place-items-center overflow-hidden rounded-full bg-forest text-[10px] font-semibold text-cream-50">
+                {seller?.shop_image_url ? (
+                  <img src={String(seller.shop_image_url)} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  shopInitials
+                )}
+              </span>
               <span className="hidden text-left lg:block">
-                <span className="block text-[10.5px] font-semibold leading-tight text-ink">{ownerName}</span>
-                <span className="block text-[9px] leading-tight text-muted">{ownerRole}</span>
+                <span className="block max-w-[150px] truncate text-[10.5px] font-semibold leading-tight text-ink">{shopName}</span>
+                <span className="block text-[9px] leading-tight text-muted">{shopRole}</span>
               </span>
               <ChevronDown size={13} className={cx('hidden text-[#8B9187] transition sm:block', profileOpen && 'rotate-180')} />
             </button>
@@ -196,7 +280,8 @@ export function Topbar({
             {profileOpen ? (
               <div className="animate-rise absolute right-0 top-12 z-50 w-56 overflow-hidden rounded-xl border border-line bg-white p-1.5 shadow-lift">
                 <div className="border-b border-line px-2.5 pb-2.5 pt-1.5">
-                  <p className="text-[11px] font-semibold text-ink">{ownerName}</p>
+                  <p className="text-[11px] font-semibold text-ink">{shopName}</p>
+                  <p className="mt-0.5 text-[9px] text-muted">{shopRole}</p>
                   <p className="truncate text-[9.5px] text-muted">{ownerEmail}</p>
                 </div>
                 <div className="grid gap-0.5 pt-1">

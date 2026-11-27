@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { completeVendorGoogleSignIn } from '../services/marketplaceApi'
 
@@ -6,8 +6,16 @@ export function VendorAuthCallbackPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const [error, setError] = useState('')
+  const startedRef = useRef(false)
 
   useEffect(() => {
+    if (startedRef.current) return
+    startedRef.current = true
+    // Never leave an OAuth code, provider error or hash fragment in the address bar.
+    const cleanUrl = new URL(window.location.href)
+    cleanUrl.search = ''
+    cleanUrl.hash = ''
+    window.history.replaceState({}, document.title, cleanUrl.pathname)
     let active = true
     async function finish() {
       try {
@@ -20,7 +28,7 @@ export function VendorAuthCallbackPage() {
         window.sessionStorage.removeItem(expectedEmailKey)
         if (!code || !expectedEmail) throw new Error('The Google sign-in response is incomplete. Please start again.')
         await completeVendorGoogleSignIn(code, expectedEmail)
-        if (active) navigate('/marketplace', { replace: true })
+        if (active) navigate('/', { replace: true })
       } catch (cause) {
         window.sessionStorage.removeItem('jtbazar_vendor_google_expected_email')
         if (active) setError(cause instanceof Error ? cause.message : 'Google sign-in could not be completed.')

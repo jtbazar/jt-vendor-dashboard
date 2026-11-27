@@ -1,18 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import {
-  CornerDownLeft,
-  ReceiptText,
-  Search,
-  UtensilsCrossed,
-  X,
-  type LucideIcon,
-} from 'lucide-react'
-import { useApp } from '../../store'
+import { CornerDownLeft, Search, X, type LucideIcon } from 'lucide-react'
 import { allNavItems } from '../../nav'
-import { cx, formatPKR } from '../../utils'
-import { OrderStatusBadge } from '../ui'
+import { cx } from '../../utils'
 
 interface Result {
   id: string
@@ -21,12 +12,10 @@ interface Result {
   path: string
   icon: LucideIcon
   group: string
-  status?: 'new' | 'accepted' | 'preparing' | 'ready' | 'completed' | 'cancelled'
 }
 
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate()
-  const { orders, menu } = useApp()
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -51,7 +40,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
 
   const results = useMemo<Result[]>(() => {
     const needle = query.trim().toLowerCase()
-    const pageResults: Result[] = allNavItems
+    return allNavItems
       .filter((item) => !needle || item.label.toLowerCase().includes(needle))
       .map((item) => ({
         id: `page-${item.to}`,
@@ -61,47 +50,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         icon: item.icon,
         group: 'Pages',
       }))
-
-    const orderResults: Result[] = needle
-      ? orders
-          .filter(
-            (order) =>
-              order.id.toLowerCase().includes(needle) ||
-              order.customer.toLowerCase().includes(needle) ||
-              order.area.toLowerCase().includes(needle),
-          )
-          .slice(0, 4)
-          .map((order) => ({
-            id: `order-${order.id}`,
-            label: `${order.id} · ${order.customer}`,
-            hint: `${formatPKR(order.total)} · ${order.fulfilment}`,
-            path: '/orders',
-            icon: ReceiptText,
-            group: 'Orders',
-            status: order.status,
-          }))
-      : []
-
-    const menuResults: Result[] = needle
-      ? menu
-          .filter(
-            (item) =>
-              item.name.toLowerCase().includes(needle) ||
-              item.category.toLowerCase().includes(needle),
-          )
-          .slice(0, 4)
-          .map((item) => ({
-            id: `menu-${item.id}`,
-            label: item.name,
-            hint: `${item.category} · ${formatPKR(item.price)}`,
-            path: '/menu',
-            icon: UtensilsCrossed,
-            group: 'Menu',
-          }))
-      : []
-
-    return [...pageResults, ...orderResults, ...menuResults]
-  }, [query, orders, menu])
+  }, [query])
 
   useEffect(() => {
     setSelected(0)
@@ -134,7 +83,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             setSelected((current) => (results.length ? (current + 1) % results.length : 0))
           } else if (event.key === 'ArrowUp') {
             event.preventDefault()
-            setSelected((current) => (results.length ? (current - 1 + results.length) % results.length : 0))
+            setSelected((current) => (current - 1 + results.length) % results.length)
           } else if (event.key === 'Enter') {
             event.preventDefault()
             goTo(results[selected])
@@ -147,7 +96,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             ref={inputRef}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search orders, menu items or pages…"
+            placeholder="Search pages…"
             className="h-[58px] min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-[#A4A89E]"
           />
           <button
@@ -164,7 +113,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           {results.length === 0 ? (
             <div className="px-5 py-10 text-center">
               <p className="font-display text-sm font-semibold text-forest">No matches for “{query}”</p>
-              <p className="mt-1 text-[11px] text-muted">Try an order number, customer name, menu item or page.</p>
+              <p className="mt-1 text-[11px] text-muted">Try a page name.</p>
             </div>
           ) : (
             results.map((result, index) => {
@@ -198,7 +147,6 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                       <span className="block truncate text-[12px] font-semibold text-ink">{result.label}</span>
                       <span className="mt-0.5 block truncate text-[10px] text-muted">{result.hint}</span>
                     </span>
-                    {result.status ? <OrderStatusBadge status={result.status} /> : null}
                     {selected === index ? <CornerDownLeft size={13} className="flex-none text-sage-600" /> : null}
                   </button>
                 </div>
