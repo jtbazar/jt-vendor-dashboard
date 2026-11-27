@@ -359,9 +359,7 @@ export async function listVendorCategories(): Promise<Array<{ id: string; name: 
 
 export async function uploadVendorProductImage(productId: string, file: File, altText: string) {
   if (file.size > 10 * 1024 * 1024) throw new Error('Product images must be 10 MB or smaller.')
-  if (!['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(file.type)) {
-    throw new Error('Choose a JPG, PNG, WebP or AVIF product image.')
-  }
+  if (!['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(file.type)) throw new Error('Choose a JPG, PNG, WebP or AVIF product image.')
   const client = getSupabase()
   const { data: { user }, error: authError } = await client.auth.getUser()
   assertNoError(authError)
@@ -374,19 +372,46 @@ export async function uploadVendorProductImage(productId: string, file: File, al
   })
   assertNoError(uploadError)
   const { data: existing, error: listError } = await client.from('product_images')
-    .select('id, sort_order').eq('product_id', productId).order('sort_order', { ascending: true }).limit(100)
+    .select('id, image_url, storage_path, sort_order').eq('product_id', productId)
+    .order('sort_order', { ascending: true }).limit(100)
   if (listError) {
     await client.storage.from('product-images').remove([path])
     throw new Error(listError.message)
   }
-  const sortOrder = existing?.length ? Math.max(...existing.map((row: any) => Number(row.sort_order))) + 1 : 0
-  const { error: insertError } = await client.from('product_images').insert({
+  const hasPublicImage = (existing ?? []).some((image: any) =>
+    Boolean(image.image_url) || Boolean(image.storage_path && (
+      (image.storage_path.startsWith(`${productId}/`) && image.storage_path.split('/').filter(Boolean).length >= 3)
+      || image.storage_path.split('/').filter(Boolean)[1] === productId
+    ))
+  )
+  if (!hasPublicImage) {
+    for (const image of [...(existing ?? [])].reverse()) {
+      const { error } = await client.from('product_images').update({ sort_order: Number(image.sort_order) + 1 })
+        .eq('id', image.id).eq('product_id', productId)
+      if (error) {
+        await client.storage.from('product-images').remove([path])
+        throw new Error(error.message)
+      }
+    }
+  }
+  const nextSort = hasPublicImage
+    ? ((existing ?? []).length ? Math.max(...(existing ?? []).map((image: any) => Number(image.sort_order))) : -1) + 1
+    : 0
+  const { data: inserted, error: insertError } = await client.from('product_images').insert({
     product_id: productId, storage_path: path, alt_text: altText.slice(0, 200),
-    sort_order: sortOrder, is_primary: !existing?.length,
-  })
-  if (insertError) {
+    sort_order: nextSort, is_primary: !hasPublicImage,
+  }).select('id').single()
+  if (insertError || !inserted) {
     await client.storage.from('product-images').remove([path])
-    throw new Error(insertError.message)
+    throw new Error(insertError?.message ?? 'The uploaded image could not be attached to this product.')
+  }
+  if (!hasPublicImage) {
+    const { error: clearError } = await client.from('product_images').update({ is_primary: false })
+      .eq('product_id', productId).neq('id', inserted.id)
+    assertNoError(clearError)
+    const { error: primaryError } = await client.from('product_images').update({ is_primary: true })
+      .eq('id', inserted.id).eq('product_id', productId)
+    assertNoError(primaryError)
   }
 }
 
