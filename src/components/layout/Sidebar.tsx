@@ -22,7 +22,7 @@ export function BrandMark({ size = 36 }: { size?: number }) {
 function sectionsForBusinessType(businessType?: string | null) {
   const type = (businessType || 'individual_seller').toLowerCase()
   const modules: Record<string, string[]> = {
-    individual_seller: ['/', '/menu', '/orders', '/inventory', '/promotions', '/customers', '/reviews', '/earnings', '/support', '/settings'],
+    individual_seller: ['/', '/menu', '/inventory', '/orders', '/support', '/settings'],
     retail_store: ['/', '/menu', '/orders', '/inventory', '/promotions', '/customers', '/reviews', '/earnings', '/analytics', '/support', '/settings'],
     restaurant: ['/', '/orders', '/kitchen', '/menu', '/promotions', '/customers', '/reviews', '/inventory', '/earnings', '/analytics', '/support', '/settings'],
     cafe: ['/', '/orders', '/kitchen', '/menu', '/promotions', '/customers', '/reviews', '/inventory', '/earnings', '/analytics', '/support', '/settings'],

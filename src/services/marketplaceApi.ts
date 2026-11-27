@@ -656,6 +656,14 @@ export async function updateVendorShopProfile(input: {
   return data
 }
 
+
+
+export async function removeVendorShopImage(path: string) {
+  if (!path) return
+  const { error } = await getSupabase().storage.from('shop-images').remove([path])
+  assertNoError(error)
+}
+
 export async function getVendorDashboardData() {
   const [profile, products, inventory, orders, cases] = await Promise.all([
     getSellerProfile(),
