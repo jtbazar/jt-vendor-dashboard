@@ -24,7 +24,7 @@ function sectionsForBusinessType(businessType?: string | null) {
   const restaurant = type === 'restaurant' || type === 'cafe'
   const allowed = restaurant
     ? new Set(['/', '/orders', '/kitchen', '/menu', '/promotions', '/customers', '/reviews', '/inventory', '/earnings', '/analytics', '/support', '/settings'])
-    : new Set(['/', '/marketplace', '/orders', '/inventory', '/promotions', '/customers', '/reviews', '/earnings', '/analytics', '/support', '/settings'])
+    : new Set(['/', '/menu', '/orders', '/inventory', '/promotions', '/customers', '/reviews', '/earnings', '/analytics', '/support', '/settings'])
 
   return navSections
     .map((section) => ({
@@ -122,7 +122,7 @@ export function Sidebar({
                       <>
                         <span className={cx('absolute left-0 top-1/2 h-3.5 w-[3px] -translate-y-1/2 rounded-r-full bg-clay transition-opacity', isActive ? 'opacity-100' : 'opacity-0')} />
                         <Icon size={16} strokeWidth={1.8} className={cx('flex-none transition-colors', isActive ? 'text-sage-300' : 'text-[#8B9A85] group-hover:text-sage-300')} />
-                        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                        <span className="min-w-0 flex-1 truncate">{!restaurant && item.to === '/menu' ? 'Products' : item.label}</span>
                         {badge > 0 ? (
                           <span className={cx('grid h-[17px] min-w-[17px] place-items-center rounded-full px-1 text-[9px] font-bold leading-none', item.badgeKey === 'newOrders' ? 'bg-clay text-white' : 'bg-white/10 text-sage-200')}>
                             {badge}
