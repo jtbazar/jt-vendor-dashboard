@@ -184,7 +184,8 @@ export function MarketplacePage() {
   function printVendorOrderSlip(orderId: string) {
     const items = orders.filter(item => item.order_id === orderId)
     if (!items.length) return
-    const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!)
+    const htmlEscapes: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
+    const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => htmlEscapes[char])
     const first = items[0]
     const rows = items.map(item => `<tr><td>${escapeHtml(item.product_name_snapshot || item.product_name || 'Product')}</td><td>${escapeHtml(item.sku_snapshot || '—')}</td><td>${escapeHtml(typeof item.variant_snapshot === 'string' ? item.variant_snapshot : JSON.stringify(item.variant_snapshot || {}))}</td><td>${escapeHtml(item.quantity)}</td></tr>`).join('')
     const printWindow = window.open('', '_blank', 'width=820,height=620')
