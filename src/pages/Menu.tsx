@@ -58,6 +58,8 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
   const [commissionError, setCommissionError] = useState('')
   const [existingImages, setExistingImages] = useState<ProductImage[]>([])
   const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [imagePreviews, setImagePreviews] = useState<string[]>([])
+  const [createdProductId, setCreatedProductId] = useState<string | null>(null)
   const [variants, setVariants] = useState<VendorVariantInput[]>([])
   const [variantFiles, setVariantFiles] = useState<Record<string, File>>({})
   const [loadingDetails, setLoadingDetails] = useState(Boolean(product?.id))
@@ -98,6 +100,12 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
   const fulfilmentCost = Math.max(0, Number(fulfilment) || 0)
   const profit = Number((base - supplier - fulfilmentCost).toFixed(2))
   const imageCount = existingImages.length + imageFiles.length
+
+  useEffect(() => {
+    const urls = imageFiles.map(file => URL.createObjectURL(file))
+    setImagePreviews(urls)
+    return () => urls.forEach(url => URL.revokeObjectURL(url))
+  }, [imageFiles])
 
   const addImages = (files: FileList | null) => {
     if (!files) return
@@ -152,9 +160,13 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
         specifications: specs, dimensions: dims, seo_title: seoTitle.trim() || null,
         seo_description: seoDescription.trim() || null,
       }
-      const productId = product?.id
-        ? (await updateVendorProduct(String(product.id), input), String(product.id))
-        : await createVendorProduct({ ...input, track_inventory: trackInventory, initial_stock: Number(initialStock) })
+      let productId = product?.id ? String(product.id) : createdProductId
+      if (productId) {
+        await updateVendorProduct(productId, input)
+      } else {
+        productId = await createVendorProduct({ ...input, track_inventory: trackInventory, initial_stock: Number(initialStock) })
+        setCreatedProductId(productId)
+      }
       const variantRows = await Promise.all(variants.map(async row => {
         const file = variantFiles[row.id ?? '']
         return file ? { ...row, image_url: await uploadVendorVariantImage(productId, file) } : row
@@ -164,7 +176,7 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
       await finalizeVendorProductSubmission(productId)
       await onSaved()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'The product could not be saved.')
+      setError(cause instanceof Error ? cause.message : 'The product could not be saved. If the listing was created, correct the issue and retry here; do not start a duplicate listing.')
     } finally { setSaving(false) }
   }
 
@@ -197,7 +209,7 @@ function ProductEditor({ product, categories, onCancel, onSaved }: {
         <div className="flex items-end gap-2"><label className="flex-1 text-[9px] font-semibold text-muted">Stock<input type="number" min="0" step="1" value={row.quantity} onChange={e=>setVariants(rows=>rows.map((v,i)=>i===index?{...v,quantity:Number(e.target.value)}:v))} className="mt-1 h-9 w-full rounded border border-line px-2 text-xs text-ink"/></label><Button size="sm" variant="ghost" color="danger" onClick={()=>setVariants(rows=>rows.filter((_,i)=>i!==index))}><X size={13}/></Button></div>
         <label className="text-[9px] font-semibold text-muted sm:col-span-2">Variant image<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={e=>{const file=e.target.files?.[0];if(file&&file.size<=10*1024*1024)setVariantFiles(current=>({...current,[row.id??'']:file}));else if(file)setError('Variant images must be 10 MB or smaller.')}} className="mt-1 block w-full text-[9px]"/></label>
       </div>)}</section>
-      <section><h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-forest">Product images ({imageCount}/8)</h3><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{existingImages.map(image=><div key={image.id} className="overflow-hidden rounded-lg border border-line"><img src={image.url} alt={image.alt_text??name} className="aspect-square w-full object-cover"/><p className="p-1 text-[8px] text-muted">{image.is_primary?'Primary image':'Saved image'}</p></div>)}{imageFiles.map((file,index)=><div key={file.name+index} className="relative overflow-hidden rounded-lg border border-line"><img src={URL.createObjectURL(file)} alt={file.name} className="aspect-square w-full object-cover"/><button type="button" onClick={()=>setImageFiles(rows=>rows.filter((_,i)=>i!==index))} className="absolute right-1 top-1 rounded-full bg-white p-1"><X size={12}/></button></div>)}</div><label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-sage-400 p-3 text-[10px] font-semibold text-sage-700"><ImagePlus size={14}/> Add JPG / PNG / WebP / AVIF images<input type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif" disabled={imageCount>=8} onChange={e=>addImages(e.target.files)} className="hidden"/></label><p className="mt-1 text-[9px] text-muted">At least one image required. Maximum 8 total, 10 MB each. Existing images are retained when you add more.</p></section>
+      <section><h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-forest">Product images ({imageCount}/8)</h3><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{existingImages.map(image=><div key={image.id} className="overflow-hidden rounded-lg border border-line"><img src={image.url} alt={image.alt_text??name} className="aspect-square w-full object-cover"/><p className="p-1 text-[8px] text-muted">{image.is_primary?'Primary image':'Saved image'}</p></div>)}{imageFiles.map((file,index)=><div key={file.name+index} className="relative overflow-hidden rounded-lg border border-line"><img src={imagePreviews[index]??''} alt={file.name} className="aspect-square w-full object-cover"/><button type="button" onClick={()=>setImageFiles(rows=>rows.filter((_,i)=>i!==index))} className="absolute right-1 top-1 rounded-full bg-white p-1"><X size={12}/></button></div>)}</div><label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-sage-400 p-3 text-[10px] font-semibold text-sage-700"><ImagePlus size={14}/> Add JPG / PNG / WebP / AVIF images<input type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif" disabled={imageCount>=8} onChange={e=>addImages(e.target.files)} className="hidden"/></label><p className="mt-1 text-[9px] text-muted">At least one image required. Maximum 8 total, 10 MB each. Existing images are retained when you add more.</p></section>
       <section><h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-forest">Description and SEO</h3><div className="grid gap-3"><label className="text-[10px] font-semibold text-muted">Short description<textarea maxLength={300} rows={2} value={shortDescription} onChange={e=>setShortDescription(e.target.value)} className="mt-1 w-full rounded-lg border border-line p-3 text-xs text-ink"/></label><label className="text-[10px] font-semibold text-muted">Full description<textarea rows={4} value={description} onChange={e=>setDescription(e.target.value)} className="mt-1 w-full rounded-lg border border-line p-3 text-xs text-ink"/></label><label className="text-[10px] font-semibold text-muted">Specifications (JSON array)<textarea rows={3} value={specifications} onChange={e=>setSpecifications(e.target.value)} className="mt-1 w-full rounded-lg border border-line p-3 font-mono text-[10px] text-ink"/></label><label className="text-[10px] font-semibold text-muted">Dimensions (JSON object)<textarea rows={3} value={dimensions} onChange={e=>setDimensions(e.target.value)} className="mt-1 w-full rounded-lg border border-line p-3 font-mono text-[10px] text-ink"/></label><label className="text-[10px] font-semibold text-muted">SEO title<input value={seoTitle} onChange={e=>setSeoTitle(e.target.value)} className="mt-1 h-9 w-full rounded-lg border border-line px-3 text-xs text-ink"/></label><label className="text-[10px] font-semibold text-muted">SEO description<textarea rows={2} value={seoDescription} onChange={e=>setSeoDescription(e.target.value)} className="mt-1 w-full rounded-lg border border-line p-3 text-xs text-ink"/></label></div></section>
       <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-4"><Button variant="secondary" onClick={onCancel} disabled={saving}>Cancel</Button><button type="submit" disabled={saving||commission===null||commissionLoading||loadingDetails} className="inline-flex h-9 items-center gap-2 rounded-lg bg-forest px-3 text-[10px] font-semibold text-white disabled:opacity-50">{saving?<LoaderCircle size={13} className="animate-spin"/>:<Package size={13}/>} {saving?'Saving…':product?'Save changes':'Submit listing'}</button></div>
     </form>}
