@@ -44,15 +44,15 @@ export function InventoryPage() {
     return rows.filter(row => {
       if (query && ![row.product_name, row.variant_name].some(value => String(value ?? '').toLowerCase().includes(query))) return false
       const quantity = Number(row.quantity ?? 0)
-      const threshold = Number(row.low_stock_threshold ?? 5)
-      if (filter === 'low' && (quantity <= 0 || quantity > threshold)) return false
+      const threshold = row.low_stock_threshold == null ? null : Number(row.low_stock_threshold)
+      if (filter === 'low' && (threshold == null || quantity <= 0 || quantity > threshold)) return false
       if (filter === 'out' && quantity > 0) return false
       if (filter === 'available' && quantity <= 0) return false
       return true
     })
   }, [rows, search, filter])
 
-  const lowCount = rows.filter(row => Number(row.quantity ?? 0) <= Number(row.low_stock_threshold ?? 5)).length
+  const lowCount = rows.filter(row => row.low_stock_threshold != null && Number(row.quantity ?? 0) <= Number(row.low_stock_threshold)).length
   const outCount = rows.filter(row => Number(row.quantity ?? 0) <= 0).length
 
   const adjust = async (row: InventoryRow, delta: number) => {
@@ -81,7 +81,7 @@ export function InventoryPage() {
         <select value={filter} onChange={e=>setFilter(e.target.value as typeof filter)} className="h-9 rounded-lg border border-line bg-white px-3 text-[10px] font-semibold text-[#62695F]"><option value="all">All stock</option><option value="low">Low stock</option><option value="out">Out of stock</option><option value="available">In stock</option></select>
       </div>
       <Card className="overflow-hidden">
-        {loading ? <div className="flex items-center justify-center gap-2 p-12 text-xs text-muted"><LoaderCircle size={16} className="animate-spin"/>Loading live inventory…</div> : filtered.length ? <div className="divide-y divide-line">{filtered.map(row => { const quantity=Number(row.quantity??0); const threshold=Number(row.low_stock_threshold??5); const low=quantity<=threshold; return <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"><div className="flex min-w-0 items-center gap-3"><span className="grid h-9 w-9 flex-none place-items-center rounded-lg bg-cream-100 text-sage-700"><Package size={15}/></span><div className="min-w-0"><p className="truncate text-xs font-semibold text-ink">{row.product_name}</p><p className="mt-0.5 truncate text-[9px] text-muted">{row.variant_name || 'Default product stock'}</p></div></div><div className="flex items-center gap-3"><div className="text-right"><p className="text-sm font-semibold text-forest tabular">{quantity} units</p><Badge tone={quantity<=0?'amber':low?'sage':'forest'}>{quantity<=0?'Out of stock':low?'Low stock':'In stock'}</Badge></div><div className="flex items-center gap-1"><Button size="sm" variant="secondary" disabled={busyId===row.id||quantity<=0} onClick={()=>void adjust(row,-1)}><Minus size={12}/></Button><Button size="sm" variant="secondary" disabled={busyId===row.id} onClick={()=>void adjust(row,1)}>{busyId===row.id?<LoaderCircle size={12} className="animate-spin"/>:<Plus size={12}/>}</Button></div></div></div>})}</div> : <div className="p-10 text-center"><AlertTriangle size={22} className="mx-auto text-[#B0B4A9]"/><p className="mt-2 text-xs font-semibold text-ink">{rows.length?'No inventory records match':'No inventory records found'}</p><p className="mt-1 text-[10px] text-muted">No demo stock is shown. Add or track stock through your real product listings.</p></div>}
+        {loading ? <div className="flex items-center justify-center gap-2 p-12 text-xs text-muted"><LoaderCircle size={16} className="animate-spin"/>Loading live inventory…</div> : filtered.length ? <div className="divide-y divide-line">{filtered.map(row => { const quantity=Number(row.quantity??0); const threshold=row.low_stock_threshold==null?null:Number(row.low_stock_threshold); const low=threshold!==null&&quantity<=threshold; return <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"><div className="flex min-w-0 items-center gap-3"><span className="grid h-9 w-9 flex-none place-items-center rounded-lg bg-cream-100 text-sage-700"><Package size={15}/></span><div className="min-w-0"><p className="truncate text-xs font-semibold text-ink">{row.product_name}</p><p className="mt-0.5 truncate text-[9px] text-muted">{row.variant_name || 'Default product stock'}</p></div></div><div className="flex items-center gap-3"><div className="text-right"><p className="text-sm font-semibold text-forest tabular">{quantity} units</p><Badge tone={quantity<=0?'amber':low?'sage':'forest'}>{quantity<=0?'Out of stock':low?'Low stock':'In stock'}</Badge></div><div className="flex items-center gap-1"><Button size="sm" variant="secondary" disabled={busyId===row.id||quantity<=0} onClick={()=>void adjust(row,-1)}><Minus size={12}/></Button><Button size="sm" variant="secondary" disabled={busyId===row.id} onClick={()=>void adjust(row,1)}>{busyId===row.id?<LoaderCircle size={12} className="animate-spin"/>:<Plus size={12}/>}</Button></div></div></div>})}</div> : <div className="p-10 text-center"><AlertTriangle size={22} className="mx-auto text-[#B0B4A9]"/><p className="mt-2 text-xs font-semibold text-ink">{rows.length?'No inventory records match':'No inventory records found'}</p><p className="mt-1 text-[10px] text-muted">No demo stock is shown. Add or track stock through your real product listings.</p></div>}
       </Card>
     </div>
   )
