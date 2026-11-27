@@ -96,7 +96,7 @@ export function VendorLoginPage() {
       </>}
       {notice && <p role="status" className="mt-4 rounded-xl bg-sage-50 p-3 text-sm text-sage-800">{notice}</p>}
       {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-      <p className="mt-6 border-t border-line pt-4 text-xs leading-5 text-muted">Vendor access is available only to an approved seller account. Your account role and permissions are enforced by Supabase.</p>
+      <div className="mt-6 flex flex-wrap justify-between gap-3 border-t border-line pt-4 text-xs"><a href="https://www.jt-bazar.com/forgot-password" className="text-sage-700 underline">Forgot password?</a><a href="https://www.jt-bazar.com/" className="text-sage-700 underline">Back to JTBazar</a></div><p className="mt-3 text-xs leading-5 text-muted">Vendor access is available only to an approved seller account. Your account role and permissions are enforced by Supabase.</p>
     </section>
   </main>
 }
