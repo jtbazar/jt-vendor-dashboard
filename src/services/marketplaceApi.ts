@@ -199,6 +199,55 @@ export async function createVendorProduct(input: {
   return String(data)
 }
 
+export async function listVendorCategories(): Promise<Array<{ id: string; name: string; parent_id: string | null }>> {
+  const { data, error } = await getSupabase().from('categories')
+    .select('id, name, parent_id')
+    .eq('is_active', true)
+    .order('name', { ascending: true })
+    .limit(500)
+  assertNoError(error)
+  return (data ?? []) as Array<{ id: string; name: string; parent_id: string | null }>
+}
+
+export async function uploadVendorProductImage(productId: string, file: File, altText: string) {
+  if (file.size > 10 * 1024 * 1024) throw new Error('Product images must be 10 MB or smaller.')
+  if (!['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(file.type)) {
+    throw new Error('Choose a JPG, PNG, WebP or AVIF product image.')
+  }
+  const client = getSupabase()
+  const { data: { user }, error: authError } = await client.auth.getUser()
+  assertNoError(authError)
+  if (!user) throw new Error('Sign in before uploading a product image.')
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-')
+  const path = `${user.id}/${productId}/${crypto.randomUUID()}-${safeName}`
+  const { error: uploadError } = await client.storage.from('product-images').upload(path, file, {
+    cacheControl: '31536000', upsert: false, contentType: file.type,
+  })
+  assertNoError(uploadError)
+  const { data: existing, error: listError } = await client.from('product_images')
+    .select('id, sort_order').eq('product_id', productId).order('sort_order', { ascending: true }).limit(100)
+  if (listError) {
+    await client.storage.from('product-images').remove([path])
+    throw new Error(listError.message)
+  }
+  const sortOrder = existing?.length ? Math.max(...existing.map((row: any) => Number(row.sort_order))) + 1 : 0
+  const { error: insertError } = await client.from('product_images').insert({
+    product_id: productId, storage_path: path, alt_text: altText.slice(0, 200),
+    sort_order: sortOrder, is_primary: !existing?.length,
+  })
+  if (insertError) {
+    await client.storage.from('product-images').remove([path])
+    throw new Error(insertError.message)
+  }
+}
+
+export async function finalizeVendorProductSubmission(productId: string) {
+  const { data, error } = await getSupabase().rpc('vendor_finalize_product_submission', { p_product_id: productId })
+  assertNoError(error)
+  if (!data) throw new Error('The product submission could not be finalized.')
+  return data as VendorProduct
+}
+
 export async function getVendorDashboardData() {
   const [profile, products, inventory, orders, cases] = await Promise.all([
     getSellerProfile(),
