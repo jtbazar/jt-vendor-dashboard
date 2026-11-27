@@ -54,7 +54,7 @@ export function VendorLanguageProvider({ children }: { children: ReactNode }) {
     }
     scan(document.body)
     const observer = new MutationObserver(records => records.forEach(record => record.addedNodes.forEach(node => scan(node))))
-    observer.observe(document.body, { childList: true, subtree: true })
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true })
     return () => observer.disconnect()
   }, [language])
   const value = useMemo(() => ({ language, setLanguage, t: (text: string) => translate(text, language) }), [language])

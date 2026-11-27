@@ -89,7 +89,7 @@ export function Sidebar({
         {navSections.map((section) => (
           <div key={t(section.label)} className="mb-5">
             <p className="mb-1.5 px-3 text-[8.5px] font-semibold uppercase tracking-[0.18em] text-[#74836E]">
-              {section.label}
+              {t(section.label)}
             </p>
             <div className="grid gap-0.5">
               {section.items.map((item) => {

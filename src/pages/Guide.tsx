@@ -81,13 +81,7 @@ export function GuidePage() {
   const copy = guideCopy[language]
   const isUrdu = language === 'ur'
 
-  useEffect(() => {
-    try {
-      window.localStorage.setItem('jtbazar-vendor-guide-language', language)
-    } catch {
-      // The guide still works when browser storage is unavailable.
-    }
-  }, [language])
+
 
   return (
     <div className="space-y-5" dir={isUrdu ? 'rtl' : 'ltr'}>
