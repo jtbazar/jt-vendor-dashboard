@@ -196,7 +196,7 @@ export function Topbar({
             {profileOpen ? (
               <div className="animate-rise absolute right-0 top-12 z-50 w-56 overflow-hidden rounded-xl border border-line bg-white p-1.5 shadow-lift">
                 <div className="border-b border-line px-2.5 pb-2.5 pt-1.5">
-                  <p className="text-[11px] font-semibold text-ink">{store.owner}</p>
+                  <p className="text-[11px] font-semibold text-ink">{ownerName}</p>
                   <p className="truncate text-[9.5px] text-muted">{ownerEmail}</p>
                 </div>
                 <div className="grid gap-0.5 pt-1">
