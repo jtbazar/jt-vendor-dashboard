@@ -5,7 +5,6 @@ import {
   Reply,
   Search,
   Star,
-  ThumbsUp,
   Timer,
 } from 'lucide-react'
 import {
@@ -79,13 +78,13 @@ export function ReviewsPage() {
       <PageHeader
         eyebrow={<><Star size={12} /> Customer feedback</>}
         title="Reputation is a kitchen metric."
-        description="Read every review, reply publicly and spot recurring issues before they affect your rating. Replies appear under your shop on the storefront and Android app."
+        description="Only verified seller reviews should appear here. The live seller-review feed is not connected yet, so sample ratings and feedback have been removed."
         actions={
           <>
-            <Button variant="secondary" onClick={() => pushToast('Feedback export', 'A review export would download here in the live product.', 'info')}>
+            <Button variant="secondary" disabled>
               Export feedback
             </Button>
-            <Button variant="primary" onClick={() => pushToast('Storefront preview', 'Opening your public shop page in a new tab.', 'info')}>
+            <Button variant="primary" disabled>
               View public page <ArrowUpRight size={14} />
             </Button>
           </>
@@ -96,14 +95,15 @@ export function ReviewsPage() {
         <Card className="p-5">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
             <div className="flex flex-none flex-col items-center border-[#F0EDE4] px-2 sm:border-r sm:pr-7">
-              <p className="font-display text-[52px] font-semibold leading-none tracking-[-0.06em] text-forest tabular">
-                {store.rating.toFixed(1)}
-              </p>
-              <Stars rating={store.rating} size={15} className="mt-2" />
-              <p className="mt-1.5 text-[9.5px] text-muted">{totalReviews.toLocaleString()} reviews</p>
-              <Badge tone="sage" className="mt-2">
-                <ThumbsUp size={9} /> Top rated shop
-              </Badge>
+              {totalReviews > 0 ? (
+                <>
+                  <p className="font-display text-[52px] font-semibold leading-none tracking-[-0.06em] text-forest tabular">{store.rating.toFixed(1)}</p>
+                  <Stars rating={store.rating} size={15} className="mt-2" />
+                  <p className="mt-1.5 text-[9.5px] text-muted">{totalReviews.toLocaleString()} verified reviews</p>
+                </>
+              ) : (
+                <p className="max-w-[150px] py-5 text-center text-[11px] text-muted">No verified customer reviews yet.</p>
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between">

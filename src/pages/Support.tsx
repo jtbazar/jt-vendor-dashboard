@@ -182,16 +182,16 @@ export function SupportPage() {
       <PageHeader
         eyebrow={<><LifeBuoy size={12} /> Vendor support</>}
         title="Help is one message away."
-        description="Raise a ticket for payouts, order disputes or shop changes. Every conversation stays here with a clear owner and response time, so nothing gets lost on WhatsApp."
+        description="Support ticket records will be loaded from the seller support API. Demo conversations have been removed; ticket creation is disabled until this page is connected to the live support service."
         actions={
           <>
             <Button
               variant="secondary"
-              onClick={() => pushToast('Callback requested', 'Your account manager will call within 15 minutes.', 'info')}
+              disabled
             >
               <Phone size={14} /> Request a call
             </Button>
-            <Button variant="primary" onClick={() => openComposer()}>
+            <Button variant="primary" disabled>
               <Plus size={14} /> New ticket
             </Button>
           </>
@@ -391,7 +391,7 @@ export function SupportPage() {
                           {fromSupport ? 'JTBazar support' : 'You'} · {entry.time}
                         </p>
                       </div>
-                      {!fromSupport ? <Avatar name="Bilal Ahmed" size={24} /> : null}
+                      {!fromSupport ? <Avatar name="Vendor" size={24} /> : null}
                     </div>
                   )
                 })}

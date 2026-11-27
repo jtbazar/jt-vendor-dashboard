@@ -19,8 +19,8 @@ import {
 } from 'lucide-react'
 import { useApp } from '../../store'
 import { cx } from '../../utils'
-import { Avatar, IconButton, Toggle } from '../ui'
-import { store } from '../../data/mock'
+import { Avatar, IconButton } from '../ui'
+import { useVendorAuth } from '../../context/VendorAuthContext'
 import type { Notification } from '../../data/mock'
 
 const notificationIcons: Record<Notification['kind'], LucideIcon> = {
@@ -52,9 +52,12 @@ export function Topbar({
   onOpenSearch: () => void
 }) {
   const navigate = useNavigate()
+  const { seller, user, signOut } = useVendorAuth()
+  const ownerName = String(seller?.owner_full_name || user?.user_metadata?.full_name || user?.email || 'Vendor')
+  const ownerRole = String(seller?.business_type || 'Seller').replaceAll('_', ' ')
+  const ownerEmail = String(seller?.contact_email || user?.email || '')
+  const storeIsOpen = seller?.shop_is_open === true
   const {
-    storeOnline,
-    setStoreOnline,
     notifications,
     unreadCount,
     markAllNotificationsRead,
@@ -86,7 +89,7 @@ export function Topbar({
             className="hidden h-9 w-[230px] items-center gap-2 rounded-full border border-line bg-white/80 px-3.5 text-[11px] text-[#8B9187] transition hover:border-[#D6D1C3] hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage-600 focus-visible:ring-offset-2 sm:flex xl:w-[270px]"
           >
             <Search size={14} className="flex-none" />
-            <span className="min-w-0 flex-1 truncate text-left">Search orders, menu, pages…</span>
+            <span className="min-w-0 flex-1 truncate text-left">Search orders, products, pages…</span>
             <kbd className="rounded border border-line bg-cream-100 px-1.5 py-0.5 font-sans text-[9px] font-semibold text-[#8B9187]">
               ⌘K
             </kbd>
@@ -95,22 +98,9 @@ export function Topbar({
             <Search size={18} />
           </IconButton>
 
-          <div className="mx-1 hidden items-center gap-2 rounded-full border border-line bg-white/70 py-1 pl-3 pr-2 xl:flex">
-            <span className={cx('h-1.5 w-1.5 rounded-full', storeOnline ? 'bg-sage-600' : 'bg-clay')} />
-            <span className="text-[10px] font-semibold text-[#5C655A]">{storeOnline ? 'Store live' : 'Paused'}</span>
-            <Toggle
-              checked={storeOnline}
-              onChange={(value) => {
-                setStoreOnline(value)
-                pushToast(
-                  value ? 'Store is live again' : 'Store paused',
-                  value ? 'New orders will start coming in.' : 'New orders are paused until you go live.',
-                  value ? 'success' : 'warning',
-                )
-              }}
-              label="Store live"
-              size="sm"
-            />
+          <div className="mx-1 hidden items-center gap-2 rounded-full border border-line bg-white/70 py-1.5 pl-3 pr-3 xl:flex">
+            <span className={cx('h-1.5 w-1.5 rounded-full', storeIsOpen ? 'bg-sage-600' : 'bg-clay')} />
+            <span className="text-[10px] font-semibold text-[#5C655A]">{storeIsOpen ? 'Store live' : 'Store closed'}</span>
           </div>
 
           <div ref={notificationRef} className="relative">
@@ -195,10 +185,10 @@ export function Topbar({
               aria-label="Open account menu"
               aria-expanded={profileOpen}
             >
-              <Avatar name={store.owner} size={32} />
+              <Avatar name={ownerName} size={32} />
               <span className="hidden text-left lg:block">
-                <span className="block text-[10.5px] font-semibold leading-tight text-ink">{store.owner}</span>
-                <span className="block text-[9px] leading-tight text-muted">{store.ownerRole}</span>
+                <span className="block text-[10.5px] font-semibold leading-tight text-ink">{ownerName}</span>
+                <span className="block text-[9px] leading-tight text-muted">{ownerRole}</span>
               </span>
               <ChevronDown size={13} className={cx('hidden text-[#8B9187] transition sm:block', profileOpen && 'rotate-180')} />
             </button>
@@ -206,8 +196,8 @@ export function Topbar({
             {profileOpen ? (
               <div className="animate-rise absolute right-0 top-12 z-50 w-56 overflow-hidden rounded-xl border border-line bg-white p-1.5 shadow-lift">
                 <div className="border-b border-line px-2.5 pb-2.5 pt-1.5">
-                  <p className="text-[11px] font-semibold text-ink">{store.owner}</p>
-                  <p className="truncate text-[9.5px] text-muted">{store.email}</p>
+                  <p className="text-[11px] font-semibold text-ink">{ownerName}</p>
+                  <p className="truncate text-[9.5px] text-muted">{ownerEmail}</p>
                 </div>
                 <div className="grid gap-0.5 pt-1">
                   <button
@@ -242,7 +232,7 @@ export function Topbar({
                     type="button"
                     onClick={() => {
                       setProfileOpen(false)
-                      pushToast('Signed out', 'This is a UI prototype — no real session was changed.', 'info')
+                      void signOut().catch((cause) => pushToast('Sign out failed', cause instanceof Error ? cause.message : 'Please try again.', 'error'))
                     }}
                     className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[11px] font-medium text-[#A14B38] transition hover:bg-[#F9EAE6]"
                   >

@@ -166,13 +166,13 @@ export function PromotionsPage() {
       <PageHeader
         eyebrow={<><BadgePercent size={12} /> Growth &amp; offers</>}
         title="Fill quiet hours. Reward regulars."
-        description="Run discounts, bundles, BOGO offers, flash sales and coupon codes across your menu. Choose exactly which items are included. JTBazar policy caps and approval rules always apply."
+        description="Promotion and coupon reporting will appear here once the live seller promotion APIs are connected. Demo campaigns and redemption totals have been removed."
         actions={
           <>
-            <Button variant="secondary" onClick={() => setCouponOpen(true)}>
+            <Button variant="secondary" disabled>
               <TicketPercent size={14} /> New coupon
             </Button>
-            <Button variant="primary" onClick={() => setCampaignOpen(true)}>
+            <Button variant="primary" disabled>
               <Plus size={14} /> Create campaign
             </Button>
           </>
@@ -402,8 +402,8 @@ export function PromotionsPage() {
           <div className="grid gap-3 sm:grid-cols-3">
             {[
               { label: 'Coupon redemptions', value: couponUses.toLocaleString(), note: 'Across all active codes' },
-              { label: 'Discount given', value: formatPKR(18420), note: 'This month' },
-              { label: 'Avg redeemed order', value: formatPKR(2140), note: 'Higher than non-promo orders' },
+              { label: 'Discount given', value: '—', note: 'Live redemption data not connected' },
+              { label: 'Avg redeemed order', value: '—', note: 'Live order attribution not connected' },
             ].map((stat) => (
               <Card key={stat.label} className="p-4">
                 <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted">{stat.label}</p>
