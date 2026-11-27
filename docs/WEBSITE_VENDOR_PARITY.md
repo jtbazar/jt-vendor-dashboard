@@ -46,9 +46,11 @@
 - [x] Added existing-RPC product editing for customer-facing fields, costs, discounts, dimensions, specifications, SEO and food-specific fields.
 - [x] Finish seller listing metadata and food-specific product fields in the UI.
 - [x] Match existing website inventory adjustment workflow and order search/status/pagination.
+- [x] Added read-only recent inventory movement history through the existing seller RLS policy.
+- [x] Added vendor product packing-slip printing without exposing customer contact or delivery details.
 - [ ] Add any additional order fields only if the existing website/vendor RPC exposes them; customer delivery/contact details remain marketplace-managed.
 - [x] Complete website-supported shop settings parity: hours, map/location visibility, shop image and private business/CNIC document replacement.
-- [ ] Add secure settlement details only if an existing vendor-authorized backend surface is verified.
+- [ ] Add earnings and secure settlement details only if an existing vendor-authorized backend surface is verified; the current settlement candidate RPC is admin-only.
 - [ ] Finish earnings, commission, settlement, analytics and all restaurant modules against verified existing backend surfaces.
 - [x] Keep mock restaurant / kitchen routes out of the live router so vendors cannot mistake prototype balances or orders for real data.
 - [ ] Validate against a dedicated staging account and run end-to-end regression tests.
