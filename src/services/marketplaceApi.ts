@@ -199,6 +199,56 @@ export async function createVendorProduct(input: {
   return String(data)
 }
 
+export interface VendorVariantInput {
+  id?: string | null
+  option_label: string
+  option_value: string
+  sku?: string | null
+  price_override: number | null
+  attributes?: Record<string, unknown>
+  image_url?: string | null
+  quantity: number
+}
+
+export async function listVendorProductVariants(productId: string): Promise<VendorVariantInput[]> {
+  const { data, error } = await getSupabase().from('product_variants')
+    .select('id, option_label, option_value, sku, price_override, attributes, image_url, quantity')
+    .eq('product_id', productId)
+    .order('created_at', { ascending: true })
+    .limit(100)
+  assertNoError(error)
+  return (data ?? []) as VendorVariantInput[]
+}
+
+export async function saveVendorProductVariants(productId: string, variants: VendorVariantInput[]) {
+  if (variants.length > 100) throw new Error('A product can have no more than 100 variants.')
+  const seen = new Set<string>()
+  for (const variant of variants) {
+    const label = variant.option_label.trim()
+    const value = variant.option_value.trim()
+    const key = `${label.toLocaleLowerCase()}::${value.toLocaleLowerCase()}`
+    if (!label || !value) throw new Error('Every variant needs an option name and value.')
+    if (seen.has(key)) throw new Error('Duplicate variant option and value. Please make each variant unique.')
+    seen.add(key)
+    if (!Number.isInteger(variant.quantity) || variant.quantity < 0) throw new Error('Variant stock must be a whole number of zero or more.')
+    if (variant.price_override !== null && (!Number.isFinite(variant.price_override) || variant.price_override < 0)) throw new Error('Enter a valid variant price.')
+  }
+  const { error } = await getSupabase().rpc('vendor_save_product_variants', {
+    p_product_id: productId,
+    p_variants: variants.map((variant) => ({
+      id: variant.id && !variant.id.startsWith('new-') ? variant.id : null,
+      option_label: variant.option_label.trim(),
+      option_value: variant.option_value.trim(),
+      sku: variant.sku?.trim() || null,
+      price_override: variant.price_override,
+      attributes: variant.attributes ?? {},
+      image_url: variant.image_url ?? null,
+      quantity: variant.quantity,
+    })),
+  })
+  assertNoError(error)
+}
+
 export async function listVendorCategories(): Promise<Array<{ id: string; name: string; parent_id: string | null }>> {
   const { data, error } = await getSupabase().from('categories')
     .select('id, name, parent_id')
