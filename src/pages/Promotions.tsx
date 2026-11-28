@@ -33,7 +33,7 @@ const emptyForm = {
   endDate: '',
   ctaText: '',
   ctaDestination: '',
-  displayPosition: 'shop_top',
+  displayPosition: 'shop_top' as 'shop_top' | 'shop_before_products' | 'shop_after_products',
 }
 
 function statusOf(value: unknown) {
@@ -259,7 +259,7 @@ export function PromotionsPage() {
                       endDate: promotion.end_date ? new Date(String(promotion.end_date)).toISOString().slice(0, 16) : '',
                       ctaText: String(promotion.cta_text ?? ''),
                       ctaDestination: String(promotion.cta_destination ?? ''),
-                      displayPosition: String(promotion.display_position ?? 'shop_top'),
+                      displayPosition: (['shop_top', 'shop_before_products', 'shop_after_products'].includes(String(promotion.display_position)) ? String(promotion.display_position) : 'shop_top') as 'shop_top' | 'shop_before_products' | 'shop_after_products',
                     })
                     setFormOpen(true)
                   }}>Edit promotion</Button>
