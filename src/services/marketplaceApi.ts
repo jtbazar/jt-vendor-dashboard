@@ -179,6 +179,48 @@ export async function removeVendorPromotionImage(path: string): Promise<void> {
   assertNoError(error)
 }
 
+function vendorPromotionImagePath(publicUrl: string | null): string | null {
+  if (!publicUrl) return null
+  const marker = '/storage/v1/object/public/shop-images/'
+  const index = publicUrl.indexOf(marker)
+  if (index < 0) return null
+  const rawPath = publicUrl.slice(index + marker.length).split('?')[0]
+  try { return decodeURIComponent(rawPath) } catch { return rawPath }
+}
+
+export async function permanentlyDeleteVendorPromotion(input: {
+  promotionId: string
+  sellerId: string
+}): Promise<void> {
+  if (!input.promotionId || !input.sellerId) throw new Error('Promotion ownership could not be verified.')
+
+  const client = getSupabase()
+  const { data: promotion, error: readError } = await client.from('promotions')
+    .select('id, banner_image_url')
+    .eq('id', input.promotionId)
+    .eq('seller_id', input.sellerId)
+    .eq('is_platform_wide', false)
+    .maybeSingle()
+  assertNoError(readError)
+  if (!promotion) throw new Error('Promotion not found or you do not have permission to delete it.')
+
+  const { data: deleted, error: deleteError } = await client.from('promotions')
+    .delete()
+    .eq('id', input.promotionId)
+    .eq('seller_id', input.sellerId)
+    .eq('is_platform_wide', false)
+    .select('id')
+    .maybeSingle()
+  assertNoError(deleteError)
+  if (!deleted) throw new Error('Promotion could not be deleted. Please refresh and try again.')
+
+  const imagePath = vendorPromotionImagePath(promotion.banner_image_url)
+  if (imagePath) {
+    const { error: imageError } = await client.storage.from('shop-images').remove([imagePath])
+    if (imageError) throw new Error('Promotion was deleted, but its banner image could not be removed. Please contact support.')
+  }
+}
+
 export async function createVendorPromotion(input: {
   sellerId: string
   title: string
