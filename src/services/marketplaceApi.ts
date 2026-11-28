@@ -214,9 +214,9 @@ export async function permanentlyDeleteVendorPromotion(input: {
   assertNoError(deleteError)
   if (!deleted) throw new Error('Promotion could not be deleted. Please refresh and try again.')
 
-  const imagePath = vendorPromotionImagePath(promotion.banner_image_url)
-  if (imagePath) {
-    const { error: imageError } = await client.storage.from('shop-images').remove([imagePath])
+  const imagePaths = [...new Set([promotion.banner_image_url, ...(Array.isArray(promotion.banner_image_urls) ? promotion.banner_image_urls : [])].map((url) => vendorPromotionImagePath(url)).filter((path): path is string => Boolean(path)))]
+  if (imagePaths.length) {
+    const { error: imageError } = await client.storage.from('shop-images').remove(imagePaths)
     return !imageError
   }
   return true
@@ -231,6 +231,7 @@ export async function createVendorPromotion(input: {
   startDate: string | null
   endDate: string | null
   bannerImageUrl: string | null
+  bannerImageUrls?: string[]
   ctaText?: string
   ctaDestination?: string
   displayPosition: 'shop_top' | 'shop_before_products' | 'shop_after_products'
@@ -247,6 +248,7 @@ export async function createVendorPromotion(input: {
     title: input.title.trim(),
     description: input.description.trim() || null,
     banner_image_url: input.bannerImageUrl,
+    banner_image_urls: (input.bannerImageUrls ?? (input.bannerImageUrl ? [input.bannerImageUrl] : [])).slice(0, 2),
     cta_text: input.ctaText?.trim() || null,
     cta_destination: input.ctaDestination?.trim() || null,
     coupon_code: input.couponCode.trim() || null,
