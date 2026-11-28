@@ -196,7 +196,7 @@ export async function permanentlyDeleteVendorPromotion(input: {
 
   const client = getSupabase()
   const { data: promotion, error: readError } = await client.from('promotions')
-    .select('id, banner_image_url')
+    .select('id, banner_image_url, banner_image_urls')
     .eq('id', input.promotionId)
     .eq('seller_id', input.sellerId)
     .eq('is_platform_wide', false)
