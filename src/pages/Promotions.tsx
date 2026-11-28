@@ -320,7 +320,7 @@ export function PromotionsPage() {
             ) : null}
           </Field>
           <Field label="Show banner at" className="sm:col-span-2">
-            <select value={form.displayPosition} onChange={(event) => setForm({ ...form, displayPosition: event.target.value })} className={inputClass}>
+            <select value={form.displayPosition} onChange={(event) => setForm({ ...form, displayPosition: event.target.value as 'shop_top' | 'shop_before_products' | 'shop_after_products' })} className={inputClass}>
               <option value="shop_top">Top of shop — below shop header</option>
               <option value="shop_before_products">Before products — after shop details and reviews</option>
               <option value="shop_after_products">After products — below the product list</option>
