@@ -190,6 +190,7 @@ export async function createVendorPromotion(input: {
   bannerImageUrl: string | null
   ctaText?: string
   ctaDestination?: string
+  displayPosition: 'shop_top' | 'shop_before_products' | 'shop_after_products'
 }): Promise<void> {
   if (!input.sellerId) throw new Error('An approved seller profile is required before creating a promotion.')
   if (input.title.trim().length < 3) throw new Error('Enter a promotion title of at least 3 characters.')
@@ -212,7 +213,7 @@ export async function createVendorPromotion(input: {
     seller_id: input.sellerId,
     is_platform_wide: false,
     status: 'pending_review',
-    display_position: 'shop_banner',
+    display_position: input.displayPosition,
     target_platform: 'website',
     campaign_type: 'banner',
     show_on_launch: false,
@@ -232,6 +233,7 @@ export async function updateVendorPromotion(input: {
   bannerImageUrl: string | null
   ctaText?: string
   ctaDestination?: string
+  displayPosition: 'shop_top' | 'shop_before_products' | 'shop_after_products'
 }): Promise<void> {
   if (!input.promotionId || !input.sellerId) throw new Error('Promotion ownership could not be verified.')
   if (input.title.trim().length < 3) throw new Error('Enter a promotion title of at least 3 characters.')
@@ -253,7 +255,7 @@ export async function updateVendorPromotion(input: {
     end_date: input.endDate,
     is_platform_wide: false,
     status: 'pending_review',
-    display_position: 'shop_banner',
+    display_position: input.displayPosition,
     target_platform: 'website',
     campaign_type: 'banner',
     show_on_launch: false,
