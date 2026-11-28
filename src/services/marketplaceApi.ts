@@ -146,7 +146,7 @@ export async function markVendorNotificationsRead(userId: string): Promise<void>
 export async function listVendorPromotions(sellerId: string): Promise<VendorPromotion[]> {
   if (!sellerId) return []
   const { data, error } = await getSupabase().from('promotions')
-    .select('id, title, description, banner_image_url, cta_text, cta_destination, is_platform_wide, seller_id, status, rejection_reason, display_position, priority, coupon_code, discount_percent, start_date, end_date, starts_at, ends_at, target_platform, campaign_type, show_on_launch, created_at, updated_at')
+    .select('id, title, description, banner_image_url, banner_image_urls, cta_text, cta_destination, is_platform_wide, seller_id, status, rejection_reason, display_position, priority, coupon_code, discount_percent, start_date, end_date, starts_at, ends_at, target_platform, campaign_type, show_on_launch, created_at, updated_at')
     .eq('is_platform_wide', false)
     .eq('seller_id', sellerId)
     .order('created_at', { ascending: false })
@@ -276,6 +276,7 @@ export async function updateVendorPromotion(input: {
   startDate: string | null
   endDate: string | null
   bannerImageUrl: string | null
+  bannerImageUrls?: string[]
   ctaText?: string
   ctaDestination?: string
   displayPosition: 'shop_top' | 'shop_before_products' | 'shop_after_products'
@@ -292,6 +293,7 @@ export async function updateVendorPromotion(input: {
     title: input.title.trim(),
     description: input.description.trim() || null,
     banner_image_url: input.bannerImageUrl,
+    banner_image_urls: (input.bannerImageUrls ?? (input.bannerImageUrl ? [input.bannerImageUrl] : [])).slice(0, 2),
     cta_text: input.ctaText?.trim() || null,
     cta_destination: input.ctaDestination?.trim() || null,
     coupon_code: input.couponCode.trim() || null,
