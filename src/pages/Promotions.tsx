@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, Field, Modal, PageHeader, inputClass, type BadgeTone } from '../components/ui'
 import { useVendorAuth } from '../context/VendorAuthContext'
-import { createVendorPromotion, listVendorPromotions, removeVendorPromotionImage, uploadVendorPromotionImage, type VendorPromotion } from '../services/marketplaceApi'
+import { createVendorPromotion, updateVendorPromotion, listVendorPromotions, removeVendorPromotionImage, uploadVendorPromotionImage, type VendorPromotion } from '../services/marketplaceApi'
 import { useApp } from '../store'
 
 const statusMeta: Record<string, { label: string; tone: BadgeTone }> = {
@@ -31,6 +31,8 @@ const emptyForm = {
   discountPercent: '',
   startDate: '',
   endDate: '',
+  ctaText: '',
+  ctaDestination: '',
 }
 
 function statusOf(value: unknown) {
@@ -61,6 +63,8 @@ export function PromotionsPage() {
   const [form, setForm] = useState(emptyForm)
   const [bannerFile, setBannerFile] = useState<File | null>(null)
   const [bannerPreview, setBannerPreview] = useState('')
+  const [editingPromotion, setEditingPromotion] = useState<VendorPromotion | null>(null)
+  const [existingBannerUrl, setExistingBannerUrl] = useState('')
 
   useEffect(() => {
     if (!bannerFile) { setBannerPreview(''); return }
@@ -79,7 +83,7 @@ export function PromotionsPage() {
     else setLoading(true)
     setError('')
     try {
-      setPromotions(await listVendorPromotions())
+      setPromotions(await listVendorPromotions(seller.id))
     } catch (cause) {
       setPromotions([])
       setError(cause instanceof Error ? cause.message : 'Live promotions could not be loaded.')
@@ -106,11 +110,12 @@ export function PromotionsPage() {
     }
     setSaving(true)
     try {
-      if (!bannerFile) throw new Error('Please upload a promotion banner image.')
+      if (!bannerFile && !existingBannerUrl) throw new Error('Please upload a promotion banner image.')
       const discount = form.discountPercent.trim() ? Number(form.discountPercent) : null
-      const uploadedBanner = await uploadVendorPromotionImage(bannerFile)
+      const uploadedBanner = bannerFile ? await uploadVendorPromotionImage(bannerFile) : null
+      const bannerImageUrl = uploadedBanner?.url ?? existingBannerUrl
       try {
-      await createVendorPromotion({
+      const payload = {
         sellerId: seller.id,
         title: form.title,
         description: form.description,
@@ -118,15 +123,24 @@ export function PromotionsPage() {
         discountPercent: discount,
         startDate: toIso(form.startDate),
         endDate: toIso(form.endDate),
-        bannerImageUrl: uploadedBanner.url,
-      })
+        bannerImageUrl,
+        ctaText: form.ctaText,
+        ctaDestination: form.ctaDestination,
+      }
+      if (editingPromotion) {
+        await updateVendorPromotion({ ...payload, promotionId: String(editingPromotion.id) })
+      } else {
+        await createVendorPromotion(payload)
+      }
       } catch (cause) {
-        await removeVendorPromotionImage(uploadedBanner.path).catch(() => undefined)
+        if (uploadedBanner) await removeVendorPromotionImage(uploadedBanner.path).catch(() => undefined)
         throw cause
       }
-      pushToast('Promotion submitted', 'JTBazar Admin will review it before it appears on the marketplace.', 'success')
+      pushToast(editingPromotion ? 'Changes submitted for review' : 'Promotion submitted', 'JTBazar Admin will review it before it appears on your shop.', 'success')
       setFormOpen(false)
       setForm(emptyForm)
+      setEditingPromotion(null)
+      setExistingBannerUrl('')
       setBannerFile(null)
       await load(true)
     } catch (cause) {
@@ -150,7 +164,7 @@ export function PromotionsPage() {
             <Button
               variant="primary"
               disabled={seller?.status !== 'approved'}
-              onClick={() => { setForm(emptyForm); setBannerFile(null); setFormOpen(true) }}
+              onClick={() => { setForm(emptyForm); setEditingPromotion(null); setExistingBannerUrl(''); setBannerFile(null); setFormOpen(true) }}
             >
               <Plus size={14} /> Create promotion
             </Button>
@@ -229,6 +243,24 @@ export function PromotionsPage() {
                 {promotion.status === 'rejected' && promotion.rejection_reason ? (
                   <p className="mt-2 rounded-lg bg-red-50 p-2 text-[9px] leading-relaxed text-red-700">Review note: {String(promotion.rejection_reason)}</p>
                 ) : null}
+                <div className="mt-3 flex justify-end">
+                  <Button size="sm" variant="secondary" disabled={saving} onClick={() => {
+                    setEditingPromotion(promotion)
+                    setExistingBannerUrl(String(promotion.banner_image_url ?? ''))
+                    setBannerFile(null)
+                    setForm({
+                      title: String(promotion.title ?? ''),
+                      description: String(promotion.description ?? ''),
+                      couponCode: String(promotion.coupon_code ?? ''),
+                      discountPercent: promotion.discount_percent == null ? '' : String(promotion.discount_percent),
+                      startDate: promotion.start_date ? new Date(String(promotion.start_date)).toISOString().slice(0, 16) : '',
+                      endDate: promotion.end_date ? new Date(String(promotion.end_date)).toISOString().slice(0, 16) : '',
+                      ctaText: String(promotion.cta_text ?? ''),
+                      ctaDestination: String(promotion.cta_destination ?? ''),
+                    })
+                    setFormOpen(true)
+                  }}>Edit promotion</Button>
+                </div>
                 <p className="mt-3 text-[8.5px] text-muted">Created {formatDate(promotion.created_at)}</p>
               </Card>
             )
@@ -252,18 +284,21 @@ export function PromotionsPage() {
       <Modal
         open={formOpen}
         onClose={() => { if (!saving) setFormOpen(false) }}
-        title="Create a seller promotion"
-        description="Submitted promotions stay pending until JTBazar Admin reviews them."
+        title={editingPromotion ? "Edit your shop promotion" : "Create a seller promotion"}
+        description="Only your shop banner is supported. New or edited promotions need JTBazar Admin approval."
         footer={
           <>
             <Button variant="secondary" onClick={() => setFormOpen(false)} disabled={saving}>Cancel</Button>
-            <Button variant="primary" onClick={() => void save()} disabled={saving || form.title.trim().length < 3 || !bannerFile}>
-              {saving ? <LoaderCircle size={13} className="animate-spin" /> : <Plus size={13} />} Submit for review
+            <Button variant="primary" onClick={() => void save()} disabled={saving || form.title.trim().length < 3 || (!bannerFile && !existingBannerUrl)}>
+              {saving ? <LoaderCircle size={13} className="animate-spin" /> : <Plus size={13} />} {editingPromotion ? 'Save changes for review' : 'Submit for review'}
             </Button>
           </>
         }
       >
         <div className="grid gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2 rounded-lg border border-line bg-cream-50 p-3 text-[9px] leading-relaxed text-muted">
+            <strong className="text-ink">Limited vendor options:</strong> Your promotion is always a banner on your own shop, website only, and sent to Admin as Pending Review. Homepage placement, popups, app targeting, priority and approval status are controlled by JTBazar Admin.
+          </div>
           <Field label="Promotion title" className="sm:col-span-2">
             <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} className={inputClass} placeholder="e.g. Weekend shop offer" />
           </Field>
@@ -274,10 +309,10 @@ export function PromotionsPage() {
               onChange={(event) => setBannerFile(event.target.files?.[0] ?? null)}
               className={inputClass}
             />
-            {bannerPreview ? (
+            {bannerPreview || existingBannerUrl ? (
               <div className="mt-2 space-y-2">
-                <img src={bannerPreview} alt="Promotion banner preview" className="h-40 w-full rounded-lg border border-line object-cover" />
-                <Button size="sm" variant="secondary" onClick={() => setBannerFile(null)} disabled={saving}>Remove image</Button>
+                <img src={bannerPreview || existingBannerUrl} alt="Promotion banner preview" className="h-40 w-full rounded-lg border border-line object-cover" />
+                <Button size="sm" variant="secondary" onClick={() => { setBannerFile(null); setExistingBannerUrl('') }} disabled={saving}>Remove image</Button>
               </div>
             ) : null}
           </Field>
@@ -292,6 +327,12 @@ export function PromotionsPage() {
           </Field>
           <Field label="Ends at">
             <input type="datetime-local" value={form.endDate} onChange={(event) => setForm({ ...form, endDate: event.target.value })} className={inputClass} />
+          </Field>
+          <Field label="Button text (optional)">
+            <input value={form.ctaText} onChange={(event) => setForm({ ...form, ctaText: event.target.value })} className={inputClass} placeholder="e.g. Shop now" maxLength={40} />
+          </Field>
+          <Field label="Button link (optional)" hint="Use a link to a product or page in your own shop.">
+            <input value={form.ctaDestination} onChange={(event) => setForm({ ...form, ctaDestination: event.target.value })} className={inputClass} placeholder="/shop/your-product" maxLength={500} />
           </Field>
           <Field label="Description" className="sm:col-span-2">
             <textarea rows={3} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} className={`${inputClass} h-auto py-2`} placeholder="Tell customers what this promotion offers." />
