@@ -25,6 +25,7 @@ import { IconButton } from '../ui'
 import { useVendorAuth } from '../../context/VendorAuthContext'
 import { useVendorLanguage } from '../../context/VendorLanguageContext'
 import { listVendorNotifications, markVendorNotificationsRead, type VendorNotification } from '../../services/marketplaceApi'
+import { getSupabase } from '../../lib/supabase'
 
 const notificationIcons: Record<string, LucideIcon> = {
   order: ReceiptText,
@@ -109,6 +110,31 @@ export function Topbar({
   useEffect(() => {
     void loadNotifications()
   }, [loadNotifications])
+
+  useEffect(() => {
+    if (!user?.id) return
+    const client = getSupabase()
+    const channel = client.channel(`vendor-notifications-${user.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${user.id}`,
+      }, () => { void loadNotifications() })
+      .subscribe()
+
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') void loadNotifications()
+    }
+    const interval = window.setInterval(refreshIfVisible, 60_000)
+    document.addEventListener('visibilitychange', refreshIfVisible)
+
+    return () => {
+      window.clearInterval(interval)
+      document.removeEventListener('visibilitychange', refreshIfVisible)
+      void client.removeChannel(channel)
+    }
+  }, [user?.id, loadNotifications])
 
   const unreadCount = useMemo(() => notifications.filter((item) => !item.read_at).length, [notifications])
 
