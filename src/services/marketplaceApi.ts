@@ -180,8 +180,8 @@ export async function createVendorPromotion(input: {
     seller_id: input.sellerId,
     is_platform_wide: false,
     status: 'pending_review',
-    display_position: 'hero_banner',
-    target_platform: 'both',
+    display_position: 'shop_banner',
+    target_platform: 'website',
     campaign_type: 'banner',
     show_on_launch: false,
   })
