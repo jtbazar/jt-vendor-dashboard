@@ -191,7 +191,7 @@ function vendorPromotionImagePath(publicUrl: string | null): string | null {
 export async function permanentlyDeleteVendorPromotion(input: {
   promotionId: string
   sellerId: string
-}): Promise<void> {
+}): Promise<boolean> {
   if (!input.promotionId || !input.sellerId) throw new Error('Promotion ownership could not be verified.')
 
   const client = getSupabase()
@@ -217,8 +217,9 @@ export async function permanentlyDeleteVendorPromotion(input: {
   const imagePath = vendorPromotionImagePath(promotion.banner_image_url)
   if (imagePath) {
     const { error: imageError } = await client.storage.from('shop-images').remove([imagePath])
-    if (imageError) throw new Error('Promotion was deleted, but its banner image could not be removed. Please contact support.')
+    return !imageError
   }
+  return true
 }
 
 export async function createVendorPromotion(input: {
