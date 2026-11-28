@@ -33,6 +33,7 @@ const emptyForm = {
   endDate: '',
   ctaText: '',
   ctaDestination: '',
+  displayPosition: 'shop_top',
 }
 
 function statusOf(value: unknown) {
@@ -126,6 +127,7 @@ export function PromotionsPage() {
         bannerImageUrl,
         ctaText: form.ctaText,
         ctaDestination: form.ctaDestination,
+        displayPosition: form.displayPosition,
       }
       if (editingPromotion) {
         await updateVendorPromotion({ ...payload, promotionId: String(editingPromotion.id) })
@@ -257,6 +259,7 @@ export function PromotionsPage() {
                       endDate: promotion.end_date ? new Date(String(promotion.end_date)).toISOString().slice(0, 16) : '',
                       ctaText: String(promotion.cta_text ?? ''),
                       ctaDestination: String(promotion.cta_destination ?? ''),
+                      displayPosition: String(promotion.display_position ?? 'shop_top'),
                     })
                     setFormOpen(true)
                   }}>Edit promotion</Button>
@@ -297,7 +300,7 @@ export function PromotionsPage() {
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2 rounded-lg border border-line bg-cream-50 p-3 text-[9px] leading-relaxed text-muted">
-            <strong className="text-ink">Limited vendor options:</strong> Your promotion is always a banner on your own shop, website only, and sent to Admin as Pending Review. Homepage placement, popups, app targeting, priority and approval status are controlled by JTBazar Admin.
+            <strong className="text-ink">Your shop only:</strong> Choose one of the three banner positions on your own shop page. JTBazar Admin approval is required before customers can see it. Homepage ads, popups, app placement and approval status stay under Admin control.
           </div>
           <Field label="Promotion title" className="sm:col-span-2">
             <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} className={inputClass} placeholder="e.g. Weekend shop offer" />
@@ -315,6 +318,14 @@ export function PromotionsPage() {
                 <Button size="sm" variant="secondary" onClick={() => { setBannerFile(null); setExistingBannerUrl('') }} disabled={saving}>Remove image</Button>
               </div>
             ) : null}
+          </Field>
+          <Field label="Show banner at" className="sm:col-span-2">
+            <select value={form.displayPosition} onChange={(event) => setForm({ ...form, displayPosition: event.target.value })} className={inputClass}>
+              <option value="shop_top">Top of shop — below shop header</option>
+              <option value="shop_before_products">Before products — after shop details and reviews</option>
+              <option value="shop_after_products">After products — below the product list</option>
+            </select>
+            <span className="mt-1 block text-[9px] text-muted">Choose where customers will see this banner on your own shop page.</span>
           </Field>
           <Field label="Discount percent" hint="Optional. Must be between 0 and 100.">
             <input type="number" min="0" max="100" step="0.01" value={form.discountPercent} onChange={(event) => setForm({ ...form, discountPercent: event.target.value })} className={inputClass} placeholder="10" />
