@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, Field, Modal, PageHeader, inputClass, type BadgeTone } from '../components/ui'
 import { useVendorAuth } from '../context/VendorAuthContext'
-import { createVendorPromotion, listVendorPromotions, type VendorPromotion } from '../services/marketplaceApi'
+import { createVendorPromotion, listVendorPromotions, removeVendorPromotionImage, uploadVendorPromotionImage, type VendorPromotion } from '../services/marketplaceApi'
 import { useApp } from '../store'
 
 const statusMeta: Record<string, { label: string; tone: BadgeTone }> = {
@@ -59,6 +59,15 @@ export function PromotionsPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState(emptyForm)
+  const [bannerFile, setBannerFile] = useState<File | null>(null)
+  const [bannerPreview, setBannerPreview] = useState('')
+
+  useEffect(() => {
+    if (!bannerFile) { setBannerPreview(''); return }
+    const url = URL.createObjectURL(bannerFile)
+    setBannerPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [bannerFile])
 
   const load = useCallback(async (quiet = false) => {
     if (!seller?.id) {
@@ -97,7 +106,10 @@ export function PromotionsPage() {
     }
     setSaving(true)
     try {
+      if (!bannerFile) throw new Error('Please upload a promotion banner image.')
       const discount = form.discountPercent.trim() ? Number(form.discountPercent) : null
+      const uploadedBanner = await uploadVendorPromotionImage(bannerFile)
+      try {
       await createVendorPromotion({
         sellerId: seller.id,
         title: form.title,
@@ -106,10 +118,16 @@ export function PromotionsPage() {
         discountPercent: discount,
         startDate: toIso(form.startDate),
         endDate: toIso(form.endDate),
+        bannerImageUrl: uploadedBanner.url,
       })
+      } catch (cause) {
+        await removeVendorPromotionImage(uploadedBanner.path).catch(() => undefined)
+        throw cause
+      }
       pushToast('Promotion submitted', 'JTBazar Admin will review it before it appears on the marketplace.', 'success')
       setFormOpen(false)
       setForm(emptyForm)
+      setBannerFile(null)
       await load(true)
     } catch (cause) {
       pushToast('Promotion not submitted', cause instanceof Error ? cause.message : 'Please check the details and try again.', 'error')
@@ -132,7 +150,7 @@ export function PromotionsPage() {
             <Button
               variant="primary"
               disabled={seller?.status !== 'approved'}
-              onClick={() => { setForm(emptyForm); setFormOpen(true) }}
+              onClick={() => { setForm(emptyForm); setBannerFile(null); setFormOpen(true) }}
             >
               <Plus size={14} /> Create promotion
             </Button>
@@ -188,6 +206,7 @@ export function PromotionsPage() {
                   </div>
                   <Badge tone={meta.tone}>{meta.label}</Badge>
                 </div>
+                {promotion.banner_image_url ? <img src={String(promotion.banner_image_url)} alt={`${String(promotion.title ?? 'Promotion')} banner`} className="mt-3 h-36 w-full rounded-lg object-cover" loading="lazy" /> : null}
                 <p className="mt-2 line-clamp-3 text-[9.5px] leading-relaxed text-muted">{String(promotion.description ?? 'No description was provided for this promotion.')}</p>
                 <div className="mt-3 grid gap-2 rounded-lg bg-cream-50 p-3 text-[9px]">
                   <div className="flex items-center justify-between gap-2">
@@ -238,7 +257,7 @@ export function PromotionsPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setFormOpen(false)} disabled={saving}>Cancel</Button>
-            <Button variant="primary" onClick={() => void save()} disabled={saving || form.title.trim().length < 3}>
+            <Button variant="primary" onClick={() => void save()} disabled={saving || form.title.trim().length < 3 || !bannerFile}>
               {saving ? <LoaderCircle size={13} className="animate-spin" /> : <Plus size={13} />} Submit for review
             </Button>
           </>
@@ -247,6 +266,20 @@ export function PromotionsPage() {
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Promotion title" className="sm:col-span-2">
             <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} className={inputClass} placeholder="e.g. Weekend shop offer" />
+          </Field>
+          <Field label="Promotion banner image" hint="Required. JPG, PNG, WebP or AVIF · Maximum 5 MB." className="sm:col-span-2">
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/avif"
+              onChange={(event) => setBannerFile(event.target.files?.[0] ?? null)}
+              className={inputClass}
+            />
+            {bannerPreview ? (
+              <div className="mt-2 space-y-2">
+                <img src={bannerPreview} alt="Promotion banner preview" className="h-40 w-full rounded-lg border border-line object-cover" />
+                <Button size="sm" variant="secondary" onClick={() => setBannerFile(null)} disabled={saving}>Remove image</Button>
+              </div>
+            ) : null}
           </Field>
           <Field label="Discount percent" hint="Optional. Must be between 0 and 100.">
             <input type="number" min="0" max="100" step="0.01" value={form.discountPercent} onChange={(event) => setForm({ ...form, discountPercent: event.target.value })} className={inputClass} placeholder="10" />
