@@ -64,17 +64,16 @@ export function PromotionsPage() {
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
-  const [bannerFile, setBannerFile] = useState<File | null>(null)
-  const [bannerPreview, setBannerPreview] = useState('')
+  const [bannerFiles, setBannerFiles] = useState<File[]>([])
+  const [bannerPreviews, setBannerPreviews] = useState<string[]>([])
   const [editingPromotion, setEditingPromotion] = useState<VendorPromotion | null>(null)
-  const [existingBannerUrl, setExistingBannerUrl] = useState('')
+  const [existingBannerUrls, setExistingBannerUrls] = useState<string[]>([])
 
   useEffect(() => {
-    if (!bannerFile) { setBannerPreview(''); return }
-    const url = URL.createObjectURL(bannerFile)
-    setBannerPreview(url)
-    return () => URL.revokeObjectURL(url)
-  }, [bannerFile])
+    const urls = bannerFiles.map((file) => URL.createObjectURL(file))
+    setBannerPreviews(urls)
+    return () => urls.forEach((url) => URL.revokeObjectURL(url))
+  }, [bannerFiles])
 
   const load = useCallback(async (quiet = false) => {
     if (!seller?.id) {
@@ -137,10 +136,13 @@ export function PromotionsPage() {
     }
     setSaving(true)
     try {
-      if (!bannerFile && !existingBannerUrl) throw new Error('Please upload a promotion banner image.')
+      if (bannerFiles.length + existingBannerUrls.length < 1) throw new Error('Please upload at least one promotion banner image.')
+      if (bannerFiles.length + existingBannerUrls.length > 2) throw new Error('A promotion can have a maximum of two banner images.')
       const discount = form.discountPercent.trim() ? Number(form.discountPercent) : null
-      const uploadedBanner = bannerFile ? await uploadVendorPromotionImage(bannerFile) : null
-      const bannerImageUrl = uploadedBanner?.url ?? existingBannerUrl
+      const uploadedBanners: Array<{ path: string; url: string }> = []
+      for (const file of bannerFiles) uploadedBanners.push(await uploadVendorPromotionImage(file))
+      const bannerImageUrls = [...existingBannerUrls, ...uploadedBanners.map((item) => item.url)].slice(0, 2)
+      const bannerImageUrl = bannerImageUrls[0] ?? null
       try {
       const payload = {
         sellerId: seller.id,
@@ -151,6 +153,7 @@ export function PromotionsPage() {
         startDate: toIso(form.startDate),
         endDate: toIso(form.endDate),
         bannerImageUrl,
+        bannerImageUrls,
         ctaText: form.ctaText,
         ctaDestination: form.ctaDestination,
         displayPosition: form.displayPosition,
@@ -161,15 +164,15 @@ export function PromotionsPage() {
         await createVendorPromotion(payload)
       }
       } catch (cause) {
-        if (uploadedBanner) await removeVendorPromotionImage(uploadedBanner.path).catch(() => undefined)
+        await Promise.all(uploadedBanners.map((item) => removeVendorPromotionImage(item.path).catch(() => undefined)))
         throw cause
       }
       pushToast(editingPromotion ? 'Changes submitted for review' : 'Promotion submitted', 'JTBazar Admin will review it before it appears on your shop.', 'success')
       setFormOpen(false)
       setForm(emptyForm)
       setEditingPromotion(null)
-      setExistingBannerUrl('')
-      setBannerFile(null)
+      setExistingBannerUrls([])
+      setBannerFiles([])
       await load(true)
     } catch (cause) {
       pushToast('Promotion not submitted', cause instanceof Error ? cause.message : 'Please check the details and try again.', 'error')
@@ -192,7 +195,7 @@ export function PromotionsPage() {
             <Button
               variant="primary"
               disabled={seller?.status !== 'approved'}
-              onClick={() => { setForm(emptyForm); setEditingPromotion(null); setExistingBannerUrl(''); setBannerFile(null); setFormOpen(true) }}
+              onClick={() => { setForm(emptyForm); setEditingPromotion(null); setExistingBannerUrls([]); setBannerFiles([]); setFormOpen(true) }}
             >
               <Plus size={14} /> Create promotion
             </Button>
@@ -248,7 +251,7 @@ export function PromotionsPage() {
                   </div>
                   <Badge tone={meta.tone}>{meta.label}</Badge>
                 </div>
-                {promotion.banner_image_url ? <img src={String(promotion.banner_image_url)} alt={`${String(promotion.title ?? 'Promotion')} banner`} className="mt-3 h-36 w-full rounded-lg object-cover" loading="lazy" /> : null}
+                {(Array.isArray(promotion.banner_image_urls) ? promotion.banner_image_urls[0] : promotion.banner_image_url) ? <img src={String((Array.isArray(promotion.banner_image_urls) ? promotion.banner_image_urls[0] : promotion.banner_image_url))} alt={`${String(promotion.title ?? 'Promotion')} banner`} className="mt-3 h-36 w-full rounded-lg object-cover" loading="lazy" /> : null}
                 <p className="mt-2 line-clamp-3 text-[9.5px] leading-relaxed text-muted">{String(promotion.description ?? 'No description was provided for this promotion.')}</p>
                 <div className="mt-3 grid gap-2 rounded-lg bg-cream-50 p-3 text-[9px]">
                   <div className="flex items-center justify-between gap-2">
@@ -277,8 +280,8 @@ export function PromotionsPage() {
                   </Button>
                   <Button size="sm" variant="secondary" disabled={saving || deletingId !== null} onClick={() => {
                     setEditingPromotion(promotion)
-                    setExistingBannerUrl(String(promotion.banner_image_url ?? ''))
-                    setBannerFile(null)
+                    setExistingBannerUrls((Array.isArray(promotion.banner_image_urls) && promotion.banner_image_urls.length ? promotion.banner_image_urls : (promotion.banner_image_url ? [promotion.banner_image_url] : [])).slice(0, 2).map(String))
+                    setBannerFiles([])
                     setForm({
                       title: String(promotion.title ?? ''),
                       description: String(promotion.description ?? ''),
@@ -321,7 +324,7 @@ export function PromotionsPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setFormOpen(false)} disabled={saving}>Cancel</Button>
-            <Button variant="primary" onClick={() => void save()} disabled={saving || form.title.trim().length < 3 || (!bannerFile && !existingBannerUrl)}>
+            <Button variant="primary" onClick={() => void save()} disabled={saving || form.title.trim().length < 3 || (bannerFiles.length + existingBannerUrls.length < 1 || bannerFiles.length + existingBannerUrls.length > 2)}>
               {saving ? <LoaderCircle size={13} className="animate-spin" /> : <Plus size={13} />} {editingPromotion ? 'Save changes for review' : 'Submit for review'}
             </Button>
           </>
@@ -334,19 +337,27 @@ export function PromotionsPage() {
           <Field label="Promotion title" className="sm:col-span-2">
             <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} className={inputClass} placeholder="e.g. Weekend shop offer" />
           </Field>
-          <Field label="Promotion banner image" hint="Required. JPG, PNG, WebP or AVIF · Maximum 5 MB." className="sm:col-span-2">
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/avif"
-              onChange={(event) => setBannerFile(event.target.files?.[0] ?? null)}
-              className={inputClass}
-            />
-            {bannerPreview || existingBannerUrl ? (
-              <div className="mt-2 space-y-2">
-                <img src={bannerPreview || existingBannerUrl} alt="Promotion banner preview" className="h-40 w-full rounded-lg border border-line object-cover" />
-                <Button size="sm" variant="secondary" onClick={() => { setBannerFile(null); setExistingBannerUrl('') }} disabled={saving}>Remove image</Button>
+          <Field label="Promotion banner images" hint="Upload 1 or 2 images. JPG, PNG, WebP or AVIF · Maximum 5 MB each." className="sm:col-span-2">
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple
+              onChange={(event) => {
+                const selected = Array.from(event.target.files ?? [])
+                const remaining = Math.max(0, 2 - existingBannerUrls.length)
+                if (selected.length > remaining) pushToast('Maximum two images', 'A promotion can have only two banner images.', 'error')
+                setBannerFiles(selected.slice(0, remaining))
+                event.target.value = ''
+              }}
+              disabled={saving || existingBannerUrls.length >= 2} className={inputClass} />
+            <p className="mt-1 text-[9px] text-muted">{existingBannerUrls.length + bannerFiles.length} of 2 images selected. With two images, customers see an automatic slider like the JTBazar homepage.</p>
+            {[...existingBannerUrls, ...bannerPreviews].map((url, index) => (
+              <div key={url} className="mt-2 flex items-center gap-3 rounded-lg border border-line p-2">
+                <img src={url} alt={`Promotion banner ${index + 1}`} className="h-16 w-24 rounded-md object-cover" />
+                <span className="flex-1 text-[10px] font-medium text-ink">Image {index + 1}</span>
+                <Button size="sm" variant="secondary" disabled={saving} onClick={() => {
+                  if (index < existingBannerUrls.length) setExistingBannerUrls((items) => items.filter((_, itemIndex) => itemIndex !== index))
+                  else setBannerFiles((items) => items.filter((_, itemIndex) => itemIndex !== index - existingBannerUrls.length))
+                }}>Remove</Button>
               </div>
-            ) : null}
+            ))}
           </Field>
           <Field label="Show banner at" className="sm:col-span-2">
             <select value={form.displayPosition} onChange={(event) => setForm({ ...form, displayPosition: event.target.value as 'shop_top' | 'shop_before_products' | 'shop_after_products' })} className={inputClass}>
