@@ -143,10 +143,12 @@ export async function markVendorNotificationsRead(userId: string): Promise<void>
   assertNoError(error)
 }
 
-export async function listVendorPromotions(): Promise<VendorPromotion[]> {
+export async function listVendorPromotions(sellerId: string): Promise<VendorPromotion[]> {
+  if (!sellerId) return []
   const { data, error } = await getSupabase().from('promotions')
     .select('id, title, description, banner_image_url, cta_text, cta_destination, is_platform_wide, seller_id, status, rejection_reason, display_position, priority, coupon_code, discount_percent, start_date, end_date, starts_at, ends_at, target_platform, campaign_type, show_on_launch, created_at, updated_at')
     .eq('is_platform_wide', false)
+    .eq('seller_id', sellerId)
     .order('created_at', { ascending: false })
     .limit(100)
   assertNoError(error)
@@ -186,6 +188,8 @@ export async function createVendorPromotion(input: {
   startDate: string | null
   endDate: string | null
   bannerImageUrl: string | null
+  ctaText?: string
+  ctaDestination?: string
 }): Promise<void> {
   if (!input.sellerId) throw new Error('An approved seller profile is required before creating a promotion.')
   if (input.title.trim().length < 3) throw new Error('Enter a promotion title of at least 3 characters.')
@@ -199,6 +203,8 @@ export async function createVendorPromotion(input: {
     title: input.title.trim(),
     description: input.description.trim() || null,
     banner_image_url: input.bannerImageUrl,
+    cta_text: input.ctaText?.trim() || null,
+    cta_destination: input.ctaDestination?.trim() || null,
     coupon_code: input.couponCode.trim() || null,
     discount_percent: input.discountPercent,
     start_date: input.startDate,
@@ -211,6 +217,48 @@ export async function createVendorPromotion(input: {
     campaign_type: 'banner',
     show_on_launch: false,
   })
+  assertNoError(error)
+}
+
+export async function updateVendorPromotion(input: {
+  promotionId: string
+  sellerId: string
+  title: string
+  description: string
+  couponCode: string
+  discountPercent: number | null
+  startDate: string | null
+  endDate: string | null
+  bannerImageUrl: string | null
+  ctaText?: string
+  ctaDestination?: string
+}): Promise<void> {
+  if (!input.promotionId || !input.sellerId) throw new Error('Promotion ownership could not be verified.')
+  if (input.title.trim().length < 3) throw new Error('Enter a promotion title of at least 3 characters.')
+  if (input.discountPercent != null && (!Number.isFinite(input.discountPercent) || input.discountPercent < 0 || input.discountPercent > 100)) {
+    throw new Error('Discount must be between 0 and 100 percent.')
+  }
+  if (input.startDate && input.endDate && Date.parse(input.endDate) <= Date.parse(input.startDate)) {
+    throw new Error('The promotion end date must be after the start date.')
+  }
+  const { error } = await getSupabase().from('promotions').update({
+    title: input.title.trim(),
+    description: input.description.trim() || null,
+    banner_image_url: input.bannerImageUrl,
+    cta_text: input.ctaText?.trim() || null,
+    cta_destination: input.ctaDestination?.trim() || null,
+    coupon_code: input.couponCode.trim() || null,
+    discount_percent: input.discountPercent,
+    start_date: input.startDate,
+    end_date: input.endDate,
+    is_platform_wide: false,
+    status: 'pending_review',
+    display_position: 'shop_banner',
+    target_platform: 'website',
+    campaign_type: 'banner',
+    show_on_launch: false,
+    updated_at: new Date().toISOString(),
+  }).eq('id', input.promotionId).eq('seller_id', input.sellerId).eq('is_platform_wide', false)
   assertNoError(error)
 }
 
