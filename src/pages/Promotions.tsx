@@ -9,10 +9,11 @@ import {
   ShieldCheck,
   Sparkles,
   TicketPercent,
+  Trash2,
 } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, Field, Modal, PageHeader, inputClass, type BadgeTone } from '../components/ui'
 import { useVendorAuth } from '../context/VendorAuthContext'
-import { createVendorPromotion, updateVendorPromotion, listVendorPromotions, removeVendorPromotionImage, uploadVendorPromotionImage, type VendorPromotion } from '../services/marketplaceApi'
+import { createVendorPromotion, updateVendorPromotion, listVendorPromotions, permanentlyDeleteVendorPromotion, removeVendorPromotionImage, uploadVendorPromotionImage, type VendorPromotion } from '../services/marketplaceApi'
 import { useApp } from '../store'
 
 const statusMeta: Record<string, { label: string; tone: BadgeTone }> = {
@@ -61,6 +62,7 @@ export function PromotionsPage() {
   const [error, setError] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [bannerFile, setBannerFile] = useState<File | null>(null)
   const [bannerPreview, setBannerPreview] = useState('')
@@ -103,6 +105,30 @@ export function PromotionsPage() {
     approved: promotions.filter((row) => row.status === 'approved').length,
     rejected: promotions.filter((row) => row.status === 'rejected').length,
   }), [promotions])
+
+  const permanentlyDelete = async (promotion: VendorPromotion) => {
+    if (!seller?.id) return
+    const promotionId = String(promotion.id ?? '')
+    if (!promotionId) return
+    const title = String(promotion.title ?? 'this promotion')
+    const confirmed = window.confirm(`Permanently delete "${title}"? This cannot be undone. Its banner image will also be deleted from storage.`)
+    if (!confirmed) return
+
+    setDeletingId(promotionId)
+    try {
+      const imageRemoved = await permanentlyDeleteVendorPromotion({ promotionId, sellerId: seller.id })
+      pushToast(
+        imageRemoved ? 'Promotion permanently deleted' : 'Promotion deleted; banner cleanup needs attention',
+        imageRemoved ? 'The promotion and its banner image were permanently removed.' : 'The promotion is gone, but its image could not be removed. Please contact support.',
+        imageRemoved ? 'success' : 'error',
+      )
+      await load(true)
+    } catch (cause) {
+      pushToast('Promotion not deleted', cause instanceof Error ? cause.message : 'Please refresh and try again.', 'error')
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   const save = async () => {
     if (!seller?.id) {
@@ -245,8 +271,11 @@ export function PromotionsPage() {
                 {promotion.status === 'rejected' && promotion.rejection_reason ? (
                   <p className="mt-2 rounded-lg bg-red-50 p-2 text-[9px] leading-relaxed text-red-700">Review note: {String(promotion.rejection_reason)}</p>
                 ) : null}
-                <div className="mt-3 flex justify-end">
-                  <Button size="sm" variant="secondary" disabled={saving} onClick={() => {
+                <div className="mt-3 flex flex-wrap justify-end gap-2">
+                  <Button size="sm" variant="secondary" className="border-red-200 text-red-700 hover:bg-red-50" disabled={saving || deletingId !== null} onClick={() => void permanentlyDelete(promotion)}>
+                    {deletingId === String(promotion.id) ? <LoaderCircle size={12} className="animate-spin" /> : <Trash2 size={12} />} Permanently delete
+                  </Button>
+                  <Button size="sm" variant="secondary" disabled={saving || deletingId !== null} onClick={() => {
                     setEditingPromotion(promotion)
                     setExistingBannerUrl(String(promotion.banner_image_url ?? ''))
                     setBannerFile(null)
