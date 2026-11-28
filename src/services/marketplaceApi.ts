@@ -153,6 +153,30 @@ export async function listVendorPromotions(): Promise<VendorPromotion[]> {
   return (data ?? []) as VendorPromotion[]
 }
 
+export async function uploadVendorPromotionImage(file: File): Promise<{ path: string; url: string }> {
+  if (file.size > 5 * 1024 * 1024) throw new Error('Promotion banners must be 5 MB or smaller.')
+  if (!['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(file.type)) {
+    throw new Error('Choose a JPG, PNG, WebP or AVIF banner image.')
+  }
+  const client = getSupabase()
+  const { data: { user }, error: authError } = await client.auth.getUser()
+  assertNoError(authError)
+  if (!user) throw new Error('Sign in before uploading a promotion banner.')
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-')
+  const path = `${user.id}/promotions/${crypto.randomUUID()}-${safeName}`
+  const { error } = await client.storage.from('shop-images').upload(path, file, {
+    cacheControl: '31536000', upsert: false, contentType: file.type,
+  })
+  assertNoError(error)
+  return { path, url: client.storage.from('shop-images').getPublicUrl(path).data.publicUrl }
+}
+
+export async function removeVendorPromotionImage(path: string): Promise<void> {
+  if (!path) return
+  const { error } = await getSupabase().storage.from('shop-images').remove([path])
+  assertNoError(error)
+}
+
 export async function createVendorPromotion(input: {
   sellerId: string
   title: string
@@ -161,6 +185,7 @@ export async function createVendorPromotion(input: {
   discountPercent: number | null
   startDate: string | null
   endDate: string | null
+  bannerImageUrl: string | null
 }): Promise<void> {
   if (!input.sellerId) throw new Error('An approved seller profile is required before creating a promotion.')
   if (input.title.trim().length < 3) throw new Error('Enter a promotion title of at least 3 characters.')
@@ -173,6 +198,7 @@ export async function createVendorPromotion(input: {
   const { error } = await getSupabase().from('promotions').insert({
     title: input.title.trim(),
     description: input.description.trim() || null,
+    banner_image_url: input.bannerImageUrl,
     coupon_code: input.couponCode.trim() || null,
     discount_percent: input.discountPercent,
     start_date: input.startDate,
