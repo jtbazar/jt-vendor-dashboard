@@ -6,6 +6,8 @@ import { CommandPalette } from './layout/CommandPalette'
 import { Toasts } from './layout/Toasts'
 import { pageTitles } from '../nav'
 import { useVendorLanguage } from '../context/VendorLanguageContext'
+import { VendorActivityAlerts } from './VendorActivityAlerts'
+import { VendorHelpAssistant } from './VendorHelpAssistant'
 
 export function Layout() {
   const location = useLocation()
@@ -62,6 +64,8 @@ export function Layout() {
       </div>
 
       <CommandPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <VendorActivityAlerts />
+      <VendorHelpAssistant />
       <Toasts />
     </div>
   )
