@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { AlertTriangle, Boxes, LoaderCircle, Minus, Package, Plus, RefreshCw, Search } from 'lucide-react'
 import { Badge, Button, Card, Modal, PageHeader } from '../components/ui'
 import { useVendorAuth } from '../context/VendorAuthContext'
-import { listVendorInventory, setProductStock } from '../services/marketplaceApi'
+import { listVendorInventory, setProductStock, setProductStockBulk } from '../services/marketplaceApi'
 
 type InventoryRow = {
   id: string
@@ -135,10 +135,14 @@ export function InventoryPage() {
     setSavingGroup(true)
     setError('')
     try {
-      for (const { row, value } of changes) {
-        const finalQuantity = editor.mode === 'add' ? Number(row.quantity ?? 0) + value : value
-        await setProductStock(row.product_id, finalQuantity, note.trim(), row.variant_id ?? null)
-      }
+      await setProductStockBulk(
+        editor.group.productId,
+        changes.map(({ row, value }) => ({
+          variant_id: row.variant_id ?? null,
+          quantity: editor.mode === 'add' ? Number(row.quantity ?? 0) + value : value,
+        })),
+        note.trim(),
+      )
       setEditor(null)
       await load()
     } catch (cause) {
@@ -155,7 +159,7 @@ export function InventoryPage() {
       <PageHeader
         eyebrow={<><Boxes size={12} /> Inventory control</>}
         title="Your stock, from live records."
-        description="Inventory quantities are loaded from your seller inventory records. Adjust one variant or update every variant of a product together using the existing vendor inventory RPC."
+        description="All seller stock records are loaded in pages. Multi-variant changes are saved together in one database transaction, so either every variant is updated or none are."
         actions={<>
           <Button variant="secondary" onClick={() => void load()} disabled={loading || savingGroup}><RefreshCw size={14} /> Refresh</Button>
           <Button variant="primary" onClick={() => setPickerOpen(true)} disabled={!groups.length || savingGroup}><Plus size={14} /> Add stock</Button>
