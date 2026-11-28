@@ -289,7 +289,7 @@ export async function updateVendorPromotion(input: {
   if (input.startDate && input.endDate && Date.parse(input.endDate) <= Date.parse(input.startDate)) {
     throw new Error('The promotion end date must be after the start date.')
   }
-  const { error } = await getSupabase().from('promotions').update({
+  const { data, error } = await getSupabase().from('promotions').update({
     title: input.title.trim(),
     description: input.description.trim() || null,
     banner_image_url: input.bannerImageUrl,
@@ -307,8 +307,9 @@ export async function updateVendorPromotion(input: {
     campaign_type: 'banner',
     show_on_launch: false,
     updated_at: new Date().toISOString(),
-  }).eq('id', input.promotionId).eq('seller_id', input.sellerId).eq('is_platform_wide', false)
+  }).eq('id', input.promotionId).eq('seller_id', input.sellerId).eq('is_platform_wide', false).select('id').maybeSingle()
   assertNoError(error)
+  if (!data?.id) throw new Error('Promotion was not updated. It may no longer belong to your shop or your access may have changed.')
 }
 
 export async function listVendorProducts(): Promise<VendorProduct[]> {
@@ -388,11 +389,21 @@ export async function listVendorReviews(sellerId: string): Promise<{ products: V
 }
 
 export async function listVendorInventory(): Promise<VendorInventory[]> {
-  const { data, error } = await getSupabase().from('product_inventory')
-    .select('id, product_id, variant_id, quantity, low_stock_threshold, updated_at, products!inner(name, seller_id), product_variants(option_label, option_value)')
-    .order('updated_at', { ascending: false }).limit(200)
-  assertNoError(error)
-  return (data ?? []).map((row: any) => {
+  const client = getSupabase()
+  const allRows: any[] = []
+  const pageSize = 1000
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await client.from('product_inventory')
+      .select('id, product_id, variant_id, quantity, low_stock_threshold, updated_at, products!inner(name, seller_id), product_variants(option_label, option_value)')
+      .order('updated_at', { ascending: false })
+      .order('id', { ascending: true })
+      .range(offset, offset + pageSize - 1)
+    assertNoError(error)
+    const page = data ?? []
+    allRows.push(...page)
+    if (page.length < pageSize) break
+  }
+  return allRows.map((row: any) => {
     const product = Array.isArray(row.products) ? row.products[0] : row.products
     const variant = Array.isArray(row.product_variants) ? row.product_variants[0] : row.product_variants
     return {
@@ -458,6 +469,25 @@ export async function setProductStock(productId: string, quantity: number, note:
     p_note: note.trim(),
   })
   assertNoError(error)
+}
+
+export async function setProductStockBulk(
+  productId: string,
+  changes: Array<{ variant_id: string | null; quantity: number }>,
+  note: string,
+): Promise<void> {
+  if (!productId || !changes.length || changes.length > 100) throw new Error('Select between 1 and 100 stock records.')
+  if (changes.some(change => !Number.isInteger(change.quantity) || change.quantity < 0)) {
+    throw new Error('Stock quantities must be whole numbers of zero or more.')
+  }
+  if (note.trim().length < 2) throw new Error('Add a reason for this stock adjustment.')
+  const { data, error } = await getSupabase().rpc('vendor_set_product_inventory_bulk', {
+    p_product_id: productId,
+    p_changes: changes.map(change => ({ variant_id: change.variant_id, quantity: change.quantity })),
+    p_note: note.trim(),
+  })
+  assertNoError(error)
+  if (Number(data) !== changes.length) throw new Error('The stock update was not fully confirmed. Refresh inventory before retrying.')
 }
 
 export async function markOrderReady(orderId: string, note?: string) {
